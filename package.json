@@ -1,12 +1,13 @@
 {
-  "name": "shorts-ranking-pro",
+  "name": "creator-tools-suite",
   "version": "1.0.0",
-  "description": "Browser-based viral video ranking maker. Drag and drop clips, customize the HUD, and export as a .webm video directly in the browser.",
+  "description": "A powerful, browser-based suite of creator AI tools, featuring an Auto Shorts Ranking Maker and an Auto Clipping Engine.",
   "main": "index.html",
   "scripts": {
     "start": "npx serve ."
   },
   "keywords": [
+    "creator-tools",
     "video-editor",
     "youtube-shorts",
     "tiktok",
