@@ -274,7 +274,29 @@
                             ]
                         }],
                         generationConfig: {
-                            responseMimeType: "application/json"
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        startSeconds: { type: "NUMBER" },
+                                        endSeconds: { type: "NUMBER" },
+                                        score: { type: "NUMBER" },
+                                        reasoning: { type: "STRING" },
+                                        words: {
+                                            type: "ARRAY",
+                                            items: {
+                                                type: "OBJECT",
+                                                properties: {
+                                                    text: { type: "STRING" },
+                                                    time: { type: "NUMBER" }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     })
                 });
@@ -296,9 +318,12 @@
                 }
 
             } catch (err) {
-                alert("AI Engine Error: " + err.message);
-                overlay.classList.add('hidden');
-                overlay.classList.remove('flex');
+                console.error(err);
+                title.textContent = "Fatal Engine Error";
+                title.classList.replace("text-emerald-400", "text-red-500");
+                desc.innerHTML = `The pipeline collapsed.<br><br><span class="text-xs text-red-400 font-mono text-left bg-black p-4 rounded-lg block overflow-x-auto">${err.message}</span>`;
+                bar.classList.replace("bg-emerald-500", "bg-red-500");
+                bar.style.width = "100%";
                 return;
             }
 
