@@ -248,7 +248,7 @@
                 Respond ONLY with a valid raw JSON Array of objects matching this exact structure: [{"startSeconds": 5.0, "endSeconds": 20.0, "score": 95, "reasoning": "Engaging hook.", "words": [{"text": "Hello", "time": 5.1}, {"text": "world", "time": 5.8}]}]
                 Do not use markdown blocks. Output pure JSON only.`;
 
-                const promptRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                const promptRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -265,6 +265,10 @@
                 });
 
                 const promptData = await promptRes.json();
+                if(!promptData.candidates) {
+                    if(promptData.error) throw new Error(promptData.error.message);
+                    throw new Error("No candidates returned: " + JSON.stringify(promptData));
+                }
                 const jsonText = promptData.candidates[0].content.parts[0].text;
                 let cleanJson = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
                 
