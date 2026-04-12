@@ -4,330 +4,386 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Editor — Creator Tools Suite</title>
-    <meta name="description" content="Browser-native basic video editor. Trim, split, and export clean video clips with no backend required.">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <meta name="description" content="Browser-native video editor. Trim, split, and export with zero uploads.">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="../css/global.css" rel="stylesheet">
-    <!-- FFmpeg.wasm for optional MP4 export -->
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
-        /* ── Timeline Canvas ── */
+        /* ── Timeline canvas ── */
         #timeline-canvas {
             display: block;
             width: 100%;
-            cursor: col-resize;
-            border-radius: 8px;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
-        /* ── Keyboard shortcut hint badges ── */
-        .kbd {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+        /* ── Divider ── */
+        .panel-divider {
+            height: 1px;
             background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 4px;
-            padding: 1px 5px;
-            font-size: 10px;
-            font-family: monospace;
-            color: #94a3b8;
+            margin: 2px 0;
         }
 
-        /* ── Range (slider) reset ── */
+        /* ── Keyboard badge ── */
+        .kbd {
+            font-family: monospace;
+            font-size: 9px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 3px;
+            padding: 1px 4px;
+            color: #64748b;
+        }
+
+        /* ── Volume slider ── */
         input[type=range] {
             -webkit-appearance: none;
-            height: 4px;
-            border-radius: 4px;
+            height: 3px;
+            border-radius: 3px;
             background: #1e293b;
             outline: none;
         }
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
             background: #10b981;
             cursor: pointer;
-            box-shadow: 0 0 6px rgba(16,185,129,.6);
         }
 
         /* ── Scrollbar ── */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,.2); border-radius: 8px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 8px; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 6px; }
 
-        /* ── Animations ── */
+        /* ── Fade-up entry ── */
         @keyframes fade-up {
-            from { opacity: 0; transform: translateY(10px); }
-            to   { opacity: 1; transform: none; }
+            from { opacity:0; transform:translateY(8px); }
+            to   { opacity:1; transform:none; }
         }
-        .fade-up { animation: fade-up .35s ease forwards; }
+        .fade-up { animation: fade-up .3s ease forwards; }
 
-        /* ── Export / Result overlays ── */
+        /* ── Overlays ── */
         #export-overlay,
-        #result-overlay { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        #result-overlay { backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
     </style>
 </head>
-<body class="antialiased selection:bg-emerald-500 selection:text-white" style="background-image: radial-gradient(circle at 20% 10%, #064e3b 0%, #0f172a 55%);">
+<body class="antialiased overflow-x-hidden"
+      style="background:#0c1524; background-image: radial-gradient(ellipse at 15% 5%, rgba(6,78,59,0.55) 0%, transparent 55%); font-family:'Outfit',sans-serif; color:#f1f5f9;">
 
-<!-- ════════════════════════════ NAV ════════════════════════════ -->
-<nav class="w-full glass sticky top-0 z-40 border-b border-white/5">
-    <div class="max-w-[1440px] mx-auto px-6 py-3.5 flex items-center justify-between">
-        <!-- Back link -->
-        <a href="../../index.html" class="flex items-center gap-2 text-slate-400 hover:text-emerald-400 transition-colors text-sm font-bold">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-            Suite
+<!-- ══════════════════════════ NAV ══════════════════════════ -->
+<nav style="background:rgba(15,23,42,0.85); border-bottom:1px solid rgba(255,255,255,0.06); backdrop-filter:blur(16px);" class="sticky top-0 z-40">
+    <div class="max-w-[1600px] mx-auto px-5 h-12 flex items-center justify-between">
+        <a href="../../index.html" class="flex items-center gap-2 text-slate-500 hover:text-emerald-400 transition-colors text-xs font-bold tracking-wide">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+            SUITE
         </a>
-
-        <!-- Brand -->
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-[0_0_14px_rgba(16,185,129,.4)]">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        <div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-[0_0_12px_rgba(16,185,129,.4)]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
             </div>
-            <span class="font-black text-lg tracking-tight">Video <span class="text-emerald-400">Editor</span></span>
+            <span class="font-black text-base tracking-tight">Video <span class="text-emerald-400">Editor</span></span>
         </div>
-
-        <!-- Nav export button (hidden until video loaded) -->
-        <div id="nav-export-btn" class="hidden">
-            <button onclick="startExport()" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-xl font-bold text-sm transition-all shadow-[0_0_14px_rgba(16,185,129,.3)]">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                Export
-            </button>
-        </div>
+        <div class="text-[10px] text-slate-600 font-bold tracking-widest uppercase">100% Local · No Upload</div>
     </div>
 </nav>
 
-<!-- ════════════════════════════ UPLOAD GATE ════════════════════════════ -->
-<div id="upload-gate" class="max-w-xl mx-auto px-6 py-24 text-center fade-up">
-    <div class="glass rounded-3xl p-12 border border-white/5">
-        <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-emerald-600/20 to-teal-600/20 border border-emerald-500/20 flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+<!-- ══════════════════════════ UPLOAD GATE ══════════════════════════ -->
+<div id="upload-gate" class="flex items-center justify-center min-h-[calc(100vh-48px)] px-6">
+    <div class="fade-up max-w-lg w-full text-center">
+        <div class="glass rounded-3xl p-14 border border-white/5">
+            <!-- Icon -->
+            <div class="w-24 h-24 mx-auto mb-7 rounded-3xl flex items-center justify-center"
+                 style="background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(20,184,166,.08)); border:1px solid rgba(16,185,129,.2);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            </div>
+
+            <h1 class="text-5xl font-black mb-3 tracking-tight">Open a Video.</h1>
+            <p class="text-slate-400 mb-10 leading-relaxed">
+                Trim the start and end by dragging the timeline handles.
+                Split and delete any section. Export as WebM or MP4 — all in your browser.
+            </p>
+
+            <!-- Upload button -->
+            <label for="vid-input"
+                   class="cursor-pointer inline-flex items-center gap-3 font-black text-lg px-10 py-4 rounded-2xl transition-all"
+                   style="background:linear-gradient(135deg,#059669,#10b981); box-shadow:0 0 30px rgba(16,185,129,.35);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Choose Video File
+            </label>
+            <input id="vid-input" type="file" accept="video/*" onchange="onVideoLoaded(this)" class="hidden">
+
+            <p class="mt-5 text-xs text-slate-600">MP4 · WebM · MOV · AVI</p>
         </div>
-        <h1 class="text-4xl font-black mb-3">Open a Video.</h1>
-        <p class="text-slate-400 mb-10 text-base leading-relaxed">
-            Trim, split, and delete segments using a visual timeline — then export a clean WebM or MP4. Everything runs in your browser.
-        </p>
-        <label for="vid-input" class="cursor-pointer inline-flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 px-8 py-4 rounded-xl font-black text-lg transition-all shadow-[0_0_24px_rgba(16,185,129,.35)]">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-            Open Video File
-        </label>
-        <input id="vid-input" type="file" accept="video/*" onchange="onVideoLoaded(this)" class="hidden">
-        <p class="mt-5 text-xs text-slate-600">MP4, WebM, MOV supported · No upload · 100% local</p>
     </div>
 </div>
 
-<!-- ════════════════════════════ EDITOR ════════════════════════════ -->
-<div id="editor" class="hidden max-w-[1440px] mx-auto px-4 pb-8 pt-4 fade-up">
+<!-- ══════════════════════════ EDITOR ══════════════════════════ -->
+<div id="editor" class="hidden max-w-[1600px] mx-auto px-4 pt-4 pb-6 fade-up">
 
-    <!-- Main Area: Preview + Tools -->
-    <div class="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4">
+    <!-- Two-column layout: [Video+Timeline | Tools] -->
+    <div class="grid gap-4" style="grid-template-columns: 1fr 260px;">
 
-        <!-- ── LEFT COLUMN: Video + Timeline stacked ── -->
-        <div class="flex flex-col gap-4">
-
-        <!-- Video Preview -->
-        <div class="glass rounded-2xl overflow-hidden border border-white/5">
-            <!-- Video element -->
-            <div class="bg-black flex items-center justify-center relative" style="min-height: 340px;">
-                <video id="preview-video"
-                       class="max-h-[55vh] w-full object-contain"
-                       onclick="togglePlayPause()"
-                       style="cursor: pointer;">
-                </video>
-                <!-- Time badge -->
-                <div id="time-badge"
-                     class="absolute top-3 right-3 bg-black/70 backdrop-blur px-3 py-1 rounded-lg text-xs font-mono text-emerald-400 font-bold pointer-events-none">
-                    0:00 / 0:00
-                </div>
-            </div>
-            <!-- Playback controls bar -->
-            <div class="flex items-center gap-4 px-5 py-3 border-t border-white/5 bg-slate-900/50">
-                <button onclick="togglePlayPause()" class="flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-[0_0_10px_rgba(16,185,129,.3)]">
-                    <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="5 3 19 12 5 21 5 3"/>
-                    </svg>
-                </button>
-                <button onclick="document.getElementById('preview-video').currentTime = 0; drawTimeline();"
-                        class="text-slate-500 hover:text-white transition-colors text-xs font-bold flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
-                    Reset
-                </button>
-                <!-- Volume -->
-                <div class="flex items-center gap-2 ml-auto">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-                    <input type="range" min="0" max="1" step="0.05" value="1"
-                           oninput="document.getElementById('preview-video').volume = this.value"
-                           class="w-20 accent-emerald-500">
-                </div>
-            </div>
-        </div>
-
-        <!-- ── Timeline (directly beneath the video) ── -->
-        <div class="glass rounded-2xl p-4 border border-white/5">
-            <div class="flex items-center justify-between mb-2">
-                <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Timeline</span>
-                <div class="flex items-center gap-4 text-[10px] font-bold">
-                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500/60 inline-block"></span>Active</span>
-                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-red-500/30 inline-block"></span>Deleted</span>
-                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block"></span>In/Out</span>
-                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-white inline-block"></span>Playhead</span>
-                </div>
-            </div>
-            <div class="w-full rounded-xl overflow-hidden bg-slate-900/80 border border-white/5">
-                <canvas id="timeline-canvas" height="80"></canvas>
-            </div>
-            <p class="text-[10px] text-slate-600 mt-2">Click to seek · Drag to scrub · Use Split and Delete buttons to edit</p>
-        </div>
-        </div><!-- end timeline -->
-
-        </div><!-- end left column -->
-
-        <!-- ── RIGHT COLUMN: Compact Toolbar ── -->
+        <!-- ─── LEFT: Video + Timeline ─── -->
         <div class="flex flex-col gap-3">
 
-            <!-- ── Edit Buttons ── -->
-            <div class="glass rounded-2xl p-4 border border-white/5 flex flex-col gap-2">
-                <p class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-1">Edit</p>
+            <!-- Video Preview -->
+            <div class="rounded-2xl overflow-hidden" style="background:#000; border:1px solid rgba(255,255,255,0.06);">
+                <div class="relative flex items-center justify-center" style="min-height:360px;">
+                    <video id="preview-video"
+                           class="w-full object-contain"
+                           style="max-height:60vh; cursor:pointer;"
+                           onclick="togglePlayPause()"></video>
 
-                <!-- Split -->
-                <button onclick="splitAtPlayhead()"
-                        class="w-full flex items-center gap-3 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 px-4 py-3 rounded-xl font-bold text-sm transition-all text-emerald-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
-                    ✂ Split at Playhead
-                    <span class="kbd ml-auto">S</span>
+                    <!-- Time badge -->
+                    <div id="time-badge"
+                         class="absolute top-3 right-3 font-mono text-xs font-black"
+                         style="background:rgba(0,0,0,.7); border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:4px 10px; color:#34d399; pointer-events:none;">
+                        0:00 / 0:00
+                    </div>
+                </div>
+
+                <!-- Playback controls bar -->
+                <div class="flex items-center gap-4 px-4 py-2.5" style="border-top:1px solid rgba(255,255,255,0.05); background:rgba(0,0,0,0.4);">
+                    <!-- Play/Pause -->
+                    <button onclick="togglePlayPause()"
+                            class="flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
+                            style="background:#059669;">
+                        <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                    </button>
+
+                    <!-- Reset -->
+                    <button onclick="document.getElementById('preview-video').currentTime=0; drawTimeline();"
+                            class="text-slate-600 hover:text-slate-300 transition-colors flex items-center gap-1 text-[11px] font-bold">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+                        Reset
+                    </button>
+
+                    <!-- Keyboard hints -->
+                    <div class="flex items-center gap-2 text-[10px] text-slate-600">
+                        <span><kbd class="kbd">Space</kbd> Play</span>
+                        <span><kbd class="kbd">S</kbd> Split</span>
+                        <span><kbd class="kbd">D</kbd> Delete</span>
+                    </div>
+
+                    <!-- Volume -->
+                    <div class="flex items-center gap-2 ml-auto">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                        <input type="range" min="0" max="1" step="0.05" value="1"
+                               style="width:72px;"
+                               oninput="document.getElementById('preview-video').volume=this.value">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="rounded-2xl p-4" style="background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.06);">
+                <!-- Header -->
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Timeline</span>
+                        <span class="text-[9px] text-slate-700">— drag <span style="color:#f59e0b">◀ ▶</span> handles to trim</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-[10px] font-bold text-slate-600">
+                        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-sm" style="background:rgba(16,185,129,.6)"></span> Active</span>
+                        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-sm" style="background:rgba(239,68,68,.35)"></span> Deleted</span>
+                        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-sm" style="background:#f59e0b"></span> Trim Handle</span>
+                        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full" style="background:#fff"></span> Playhead</span>
+                    </div>
+                </div>
+
+                <!-- Canvas -->
+                <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.05);">
+                    <canvas id="timeline-canvas" height="90"></canvas>
+                </div>
+
+                <!-- Time labels -->
+                <div class="flex justify-between mt-2 text-[9px] font-mono text-slate-700">
+                    <span>0:00</span>
+                    <span id="time-badge-bottom" class="text-slate-500">Scrub or drag handles</span>
+                    <span id="dur-label">—</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── RIGHT: Tools Panel ─── -->
+        <div class="flex flex-col gap-0 rounded-2xl overflow-hidden"
+             style="background:rgba(15,23,42,0.85); border:1px solid rgba(255,255,255,0.07);">
+
+            <!-- Panel header -->
+            <div class="px-4 py-3" style="border-bottom:1px solid rgba(255,255,255,0.05); background:rgba(0,0,0,.2);">
+                <p class="text-[10px] font-black uppercase tracking-widest text-slate-500">Editor Controls</p>
+            </div>
+
+            <div class="flex flex-col gap-0 flex-1 overflow-y-auto p-4 gap-4">
+
+                <!-- ── Edit ── -->
+                <div>
+                    <p class="text-[9px] font-black uppercase tracking-widest text-emerald-600 mb-2">Edit</p>
+                    <div class="flex flex-col gap-2">
+                        <!-- Split -->
+                        <button onclick="splitAtPlayhead()"
+                                class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all text-left"
+                                style="background:rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.25); color:#6ee7b7;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                            ✂ Split at Playhead
+                            <span class="kbd ml-auto">S</span>
+                        </button>
+
+                        <!-- Delete -->
+                        <button id="delete-btn" onclick="deleteSelected()" disabled
+                                class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all text-left opacity-40 cursor-not-allowed"
+                                style="background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.2); color:#fca5a5;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                            🗑 Delete Segment
+                            <span class="kbd ml-auto">D</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="panel-divider"></div>
+
+                <!-- ── Trim ── -->
+                <div>
+                    <p class="text-[9px] font-black uppercase tracking-widest mb-2" style="color:#d97706;">Trim</p>
+                    <div class="rounded-xl p-3 flex flex-col gap-2.5" style="background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.15);">
+                        <!-- IN row -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-5 h-5 rounded flex items-center justify-center text-[9px] font-black" style="background:#f59e0b; color:#000;">IN</div>
+                                <span id="in-display" class="font-mono font-black text-sm">0:00</span>
+                            </div>
+                            <span class="text-[9px] text-slate-600">drag ◀ on timeline</span>
+                        </div>
+                        <!-- OUT row -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-5 h-5 rounded flex items-center justify-center text-[9px] font-black" style="background:#f59e0b; color:#000;">OUT</div>
+                                <span id="out-display" class="font-mono font-black text-sm">0:00</span>
+                            </div>
+                            <span class="text-[9px] text-slate-600">drag ▶ on timeline</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-divider"></div>
+
+                <!-- ── Output stats ── -->
+                <div>
+                    <p class="text-[9px] font-black uppercase tracking-widest text-emerald-600 mb-2">Output</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="rounded-xl p-2 text-center" style="background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.05);">
+                            <div id="stat-duration" class="text-sm font-black text-emerald-400">0:00</div>
+                            <div class="text-[8px] text-slate-600 mt-0.5 font-bold uppercase">Dur</div>
+                        </div>
+                        <div class="rounded-xl p-2 text-center" style="background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.05);">
+                            <div id="stat-cuts" class="text-sm font-black text-white">0</div>
+                            <div class="text-[8px] text-slate-600 mt-0.5 font-bold uppercase">Cuts</div>
+                        </div>
+                        <div class="rounded-xl p-2 text-center" style="background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.05);">
+                            <div id="stat-segs" class="text-sm font-black text-white">1</div>
+                            <div class="text-[8px] text-slate-600 mt-0.5 font-bold uppercase">Segs</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-divider"></div>
+
+                <!-- ── Format ── -->
+                <div>
+                    <p class="text-[9px] font-black uppercase tracking-widest text-emerald-600 mb-2">Export Format</p>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <button id="fmt-webm" onclick="setFormat('webm')"
+                                class="fmt-btn py-2 rounded-xl font-black text-sm border border-emerald-500 text-emerald-400 transition-all"
+                                style="background:rgba(16,185,129,.12);">
+                            WebM
+                        </button>
+                        <button id="fmt-mp4" onclick="setFormat('mp4')"
+                                class="fmt-btn py-2 rounded-xl font-black text-sm text-slate-500 transition-all"
+                                style="border:1px solid rgba(255,255,255,.1);">
+                            MP4
+                        </button>
+                    </div>
+                    <p id="fmt-note" class="text-[9px] text-slate-600">Fast · no conversion needed</p>
+                </div>
+
+                <!-- Spacer -->
+                <div class="flex-1"></div>
+
+                <!-- ── Export button ── -->
+                <button onclick="startExport()"
+                        class="w-full py-3.5 rounded-xl font-black text-base transition-all flex items-center justify-center gap-2"
+                        style="background:linear-gradient(135deg,#059669,#10b981); box-shadow:0 0 20px rgba(16,185,129,.3);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    Export Video
                 </button>
 
-                <!-- Delete / Restore -->
-                <button id="delete-btn" onclick="deleteSelected()" disabled
-                        class="w-full flex items-center gap-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-4 py-3 rounded-xl font-bold text-sm transition-all text-red-400 opacity-40">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-                    🗑 Delete Segment
-                    <span class="kbd ml-auto">D</span>
-                </button>
+                <!-- Re-open link -->
+                <label for="vid-input2"
+                       class="cursor-pointer block text-center text-[10px] text-slate-600 hover:text-slate-400 transition-colors font-bold pt-1">
+                    ↩ Open Different Video
+                </label>
+                <input id="vid-input2" type="file" accept="video/*" onchange="onVideoLoaded(this)" class="hidden">
+
             </div>
+        </div>
 
-            <!-- ── Trim (In / Out) ── -->
-            <div class="glass rounded-2xl p-4 border border-white/5">
-                <p class="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-3">Trim</p>
-
-                <!-- IN row -->
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-black text-amber-400 w-7">IN</span>
-                        <span id="in-display" class="font-mono font-black text-sm text-white">0:00</span>
-                    </div>
-                    <button onclick="setInPoint()"
-                            class="bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 5 19 12"/></svg>
-                        Set In
-                    </button>
-                </div>
-
-                <!-- OUT row -->
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-black text-amber-400 w-7">OUT</span>
-                        <span id="out-display" class="font-mono font-black text-sm text-white">0:00</span>
-                    </div>
-                    <button onclick="setOutPoint()"
-                            class="bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 19 12 19 19 19"/></svg>
-                        Set Out
-                    </button>
-                </div>
-            </div>
-
-            <!-- ── Stats ── -->
-            <div class="glass rounded-2xl p-4 border border-white/5">
-                <p class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-3">Output</p>
-                <div class="grid grid-cols-3 gap-2">
-                    <div class="bg-slate-900/70 rounded-xl p-2 text-center">
-                        <div id="stat-duration" class="text-sm font-black text-emerald-400">0:00</div>
-                        <div class="text-[9px] text-slate-500 mt-0.5 font-bold uppercase">Duration</div>
-                    </div>
-                    <div class="bg-slate-900/70 rounded-xl p-2 text-center">
-                        <div id="stat-cuts" class="text-sm font-black text-white">0</div>
-                        <div class="text-[9px] text-slate-500 mt-0.5 font-bold uppercase">Cuts</div>
-                    </div>
-                    <div class="bg-slate-900/70 rounded-xl p-2 text-center">
-                        <div id="stat-segs" class="text-sm font-black text-white">1</div>
-                        <div class="text-[9px] text-slate-500 mt-0.5 font-bold uppercase">Segments</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── Format ── -->
-            <div class="glass rounded-2xl p-4 border border-white/5">
-                <p class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-3">Format</p>
-                <div class="grid grid-cols-2 gap-2 mb-2">
-                    <button id="fmt-webm" onclick="setFormat('webm')"
-                            class="fmt-btn py-2 rounded-xl text-sm font-black border border-emerald-500 bg-emerald-500/15 text-emerald-400 transition-all">
-                        WebM
-                    </button>
-                    <button id="fmt-mp4" onclick="setFormat('mp4')"
-                            class="fmt-btn py-2 rounded-xl text-sm font-black border border-white/10 text-slate-400 transition-all hover:border-white/25">
-                        MP4
-                    </button>
-                </div>
-                <p id="fmt-note" class="text-[10px] text-slate-500">Fast export · no conversion</p>
-            </div>
-
-            <!-- ── Export ── -->
-            <button onclick="startExport()"
-                    class="w-full bg-emerald-600 hover:bg-emerald-500 py-3.5 rounded-2xl font-black text-base transition-all shadow-[0_0_20px_rgba(16,185,129,.35)] flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                Export Video
-            </button>
-
-            <!-- Re-open -->
-            <label for="vid-input2" class="cursor-pointer block text-center text-xs text-slate-500 hover:text-slate-300 transition-colors py-1 font-bold">↩ Open Different Video</label>
-            <input id="vid-input2" type="file" accept="video/*" onchange="onVideoLoaded(this)" class="hidden">
-        </div><!-- end right column -->
     </div><!-- end grid -->
-
 </div><!-- end editor -->
-</div>
 
-<!-- ════ Toast notification ════ -->
+<!-- ════ Toast ════ -->
 <div id="toast"
-     class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 border border-white/10 px-5 py-2.5 rounded-xl text-sm font-bold shadow-xl pointer-events-none opacity-0 translate-y-2 transition-all duration-300 z-50">
+     class="fixed bottom-5 left-1/2 -translate-x-1/2 text-sm font-bold px-5 py-2.5 rounded-xl shadow-xl pointer-events-none opacity-0 translate-y-2 transition-all duration-300 z-50"
+     style="background:rgba(30,41,59,.95); border:1px solid rgba(255,255,255,.1);">
 </div>
 
 <!-- ════ Export Overlay ════ -->
-<div id="export-overlay" class="fixed inset-0 bg-slate-950/90 z-50 hidden flex-col items-center justify-center p-8">
-    <div class="glass rounded-3xl p-10 max-w-sm w-full text-center border border-white/10">
-        <div class="w-16 h-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin mx-auto mb-6"></div>
+<div id="export-overlay" class="fixed inset-0 z-50 hidden flex-col items-center justify-center p-8"
+     style="background:rgba(12,21,36,.92);">
+    <div class="rounded-3xl p-10 max-w-sm w-full text-center"
+         style="background:rgba(15,23,42,.9); border:1px solid rgba(255,255,255,.1);">
+        <div class="w-14 h-14 rounded-full border-4 border-t-emerald-500 animate-spin mx-auto mb-6"
+             style="border-color:rgba(16,185,129,.2); border-top-color:#10b981;"></div>
         <h3 id="exp-title" class="text-xl font-black text-emerald-400 mb-2">Rendering…</h3>
-        <p id="exp-desc" class="text-sm text-slate-400 font-mono">Preparing segment</p>
-        <div class="w-full bg-slate-800 rounded-full h-1.5 mt-6 overflow-hidden">
-            <div id="exp-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-300 w-0"></div>
+        <p id="exp-desc" class="text-sm text-slate-500 font-mono">Preparing</p>
+        <div class="w-full rounded-full h-1.5 mt-6 overflow-hidden" style="background:#1e293b;">
+            <div id="exp-bar" class="h-full rounded-full transition-all duration-300 w-0" style="background:#10b981;"></div>
         </div>
     </div>
 </div>
 
 <!-- ════ Result Overlay ════ -->
-<div id="result-overlay" class="fixed inset-0 bg-slate-950/95 z-50 hidden flex-col items-center justify-center p-8 gap-6">
+<div id="result-overlay" class="fixed inset-0 z-50 hidden flex-col items-center justify-center p-8 gap-6"
+     style="background:rgba(12,21,36,.97);">
     <div class="text-center">
-        <div class="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+             style="background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.3);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
-        <p class="text-xs font-bold tracking-widest text-emerald-500 uppercase">Export Complete</p>
+        <p class="text-[10px] font-black tracking-widest text-emerald-500 uppercase">Export Complete</p>
         <h2 class="text-3xl font-black mt-2 mb-1">Your Edit is Ready.</h2>
         <p id="result-meta" class="text-slate-400 text-sm"></p>
     </div>
-    <video id="result-video" class="max-h-[42vh] rounded-2xl border border-white/10 shadow-2xl" controls></video>
-    <div class="flex gap-4 flex-wrap justify-center">
+    <video id="result-video" class="max-h-[42vh] rounded-2xl shadow-2xl" style="border:1px solid rgba(255,255,255,.1);" controls></video>
+    <div class="flex gap-3 flex-wrap justify-center">
         <a id="dl-link"
-           class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 px-8 py-3.5 rounded-xl font-black text-sm cursor-pointer transition-all shadow-[0_0_18px_rgba(16,185,129,.3)]">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+           class="flex items-center gap-2 font-black text-sm px-8 py-3.5 rounded-xl cursor-pointer transition-all"
+           style="background:#059669; box-shadow:0 0 18px rgba(16,185,129,.3);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
             <span id="dl-label">Download WebM</span>
         </a>
         <button onclick="document.getElementById('result-overlay').classList.add('hidden')"
-                class="px-8 py-3.5 rounded-xl font-bold text-sm bg-slate-800 hover:bg-slate-700 transition-colors">
+                class="px-7 py-3.5 rounded-xl font-bold text-sm transition-colors"
+                style="background:rgba(30,41,59,.7); border:1px solid rgba(255,255,255,.08);">
             Back to Editor
         </button>
         <button onclick="location.reload()"
-                class="px-8 py-3.5 rounded-xl font-bold text-sm bg-slate-800 hover:bg-slate-700 transition-colors">
+                class="px-7 py-3.5 rounded-xl font-bold text-sm transition-colors"
+                style="background:rgba(30,41,59,.7); border:1px solid rgba(255,255,255,.08);">
             New Project
         </button>
     </div>
@@ -336,11 +392,11 @@
 <!-- Keyboard shortcuts -->
 <script>
 document.addEventListener('keydown', e => {
-    if (!document.getElementById('editor').classList.contains('hidden')) {
-        if (e.key === ' '  && e.target.tagName !== 'INPUT') { e.preventDefault(); togglePlayPause(); }
-        if (e.key === 's'  && e.target.tagName !== 'INPUT') splitAtPlayhead();
-        if (e.key === 'd'  && e.target.tagName !== 'INPUT') deleteSelected();
-    }
+    if (document.getElementById('editor').classList.contains('hidden')) return;
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === ' ') { e.preventDefault(); togglePlayPause(); }
+    if (e.key === 's' || e.key === 'S') splitAtPlayhead();
+    if (e.key === 'd' || e.key === 'D') deleteSelected();
 });
 </script>
 <script src="../js/editor-engine.js"></script>
