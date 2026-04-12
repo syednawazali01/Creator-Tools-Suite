@@ -1,375 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Full Length Ranking Overlay</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@900&display=swap" rel="stylesheet">
+    <title>Creator Tools Suite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
         body {
-            background: #0f172a;
-            color: #fff;
-            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Outfit', sans-serif;
+            background-image: radial-gradient(circle at 50% -20%, #1e1b4b, #0f172a);
+            min-height: 100vh;
         }
 
-        .glass {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
         }
 
-        input[type="text"] {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            padding: 6px;
-            outline: none;
-            width: 100%;
-            font-size: 12px;
-        }
-
-        input[type="text"]:focus {
-            border-color: #3b82f6;
+        .glass-card:hover {
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px -10px rgba(99, 102, 241, 0.15);
         }
     </style>
 </head>
-
-<body class="p-4 md:p-8">
-    <div class="max-w-4xl mx-auto">
-        <h1 class="text-2xl font-black mb-6 text-center text-blue-500 italic">RANKING OVERLAY (FULL LENGTH)</h1>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- Left: Settings -->
-            <div class="space-y-6">
-                <div class="glass p-5 rounded-2xl">
-                    <h2 class="text-xs font-bold uppercase text-slate-500 mb-4 tracking-widest">Step 1: Customize Video Title</h2>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div><label class="text-[10px] text-slate-400">Top Left (White)</label><input id="t1"
-                                type="text" value="Ranking"></div>
-                        <div><label class="text-[10px] text-yellow-500">Top Right (Yellow)</label><input id="t2"
-                                type="text" value="Funniest"></div>
-                        <div><label class="text-[10px] text-blue-400">Bottom Left (Blue)</label><input id="t3"
-                                type="text" value="Water Park"></div>
-                        <div><label class="text-[10px] text-slate-400">Bottom Right (White)</label><input id="t4"
-                                type="text" value="Moments"></div>
-                    </div>
+<body class="antialiased selection:bg-indigo-500 selection:text-white">
+    <!-- Navbar -->
+    <nav class="w-full glass-card border-b-0 border-t-0 border-x-0 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg shadow-lg">
+                    C
                 </div>
+                <span class="font-bold text-xl tracking-tight text-white">Creator Tools Suite</span>
+            </div>
+            <a href="https://github.com/syednawazali01/Auto-Shorts-Ranking-Maker" target="_blank" class="text-sm font-semibold text-slate-300 hover:text-white transition-colors">GitHub</a>
+        </div>
+    </nav>
 
-                <div class="glass p-5 rounded-2xl">
-                    <h2 class="text-xs font-bold uppercase text-slate-500 mb-2 tracking-widest">How It Works</h2>
-                    <p class="text-[11px] text-slate-400 leading-relaxed">
-                        This creates a countdown video. It will combine your clips, playing <b>the highest rank first</b> and building up to Rank 1. The custom text labels will step-by-step reveal themselves!
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-6 py-16 md:py-24">
+        <!-- Hero Section -->
+        <div class="text-center mb-20 animate-[animate-pulse_2s_ease-in-out]">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-card text-xs font-semibold text-indigo-300 mb-6 border border-indigo-500/20">
+                <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                v1.0 is live
+            </div>
+            <h1 class="text-5xl md:text-7xl font-black tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-slate-400">
+                Supercharge Your Content.
+            </h1>
+            <p class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto">
+                A highly-optimized, browser-native suite of tools designed to automate viral video creation directly on your machine.
+            </p>
+        </div>
+
+        <!-- Tools Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative max-w-5xl mx-auto">
+            
+            <!-- Tool Card 1: Shorts Ranking -->
+            <a href="tools/shorts-ranking.html" class="glass-card rounded-2xl p-1 group block cursor-pointer">
+                <div class="bg-slate-900/50 rounded-xl overflow-hidden aspect-video relative flex items-center justify-center border border-white/5">
+                    <!-- Icon / Visual -->
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 group-hover:opacity-100 opacity-50 transition-opacity"></div>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 transform group-hover:scale-110 transition-transform duration-300 relative z-10"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="m16 13-5 5-3-3"/></svg>
+                </div>
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-xl font-bold text-white group-hover:text-indigo-300 transition-colors">Auto Shorts Ranking Maker</h2>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500 transform group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
+                    </div>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        Drag and drop clips to generate viral Top 5 ranking videos. Real-time rendering, custom text styles, and native WebM exports.
                     </p>
                 </div>
+            </a>
 
-                <button onclick="generateVideo()" id="gen-btn"
-                    class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-black text-xl transition-all shadow-lg">
-                    GENERATE FINAL VIDEO
-                </button>
+            <!-- Empty State / Upcoming tools -->
+            <div class="glass-card rounded-2xl p-8 flex flex-col items-center justify-center text-center opacity-60 border-dashed border-2 relative select-none">
+                <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+                </div>
+                <h3 class="font-bold text-slate-300 mb-2">More Tools Coming Soon</h3>
+                <p class="text-xs text-slate-500">Stay tuned for future updates and tools added to the suite.</p>
             </div>
 
-            <!-- Right: Slots -->
-            <div class="space-y-3">
-                <h2 class="text-xs font-bold uppercase text-slate-500 tracking-widest">Step 2: Upload Clips (Starts at Highest Rank)</h2>
-                <div id="slots-list" class="space-y-2">
-                    <!-- Slots dynamic -->
-                </div>
-                <button onclick="addSlot(false)" class="w-full mt-4 bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-bold text-sm text-slate-300 border border-slate-700 border-dashed transition-all cursor-pointer">
-                    + ADD NEW RANK (AT TOP)
-                </button>
-            </div>
         </div>
-    </div>
+    </main>
 
-    <!-- UI: Loading Overlay -->
-    <div id="loader" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col items-center justify-center">
-        <div class="mb-4 text-center">
-            <span class="text-[10px] font-bold text-blue-500 tracking-widest uppercase animate-pulse">Live Rendering Preview</span>
-        </div>
-        <canvas id="canvas" class="h-[55vh] w-auto rounded-xl border border-slate-700 shadow-2xl bg-black mb-8"></canvas>
-        <div class="w-64 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-            <div id="progress-bar" class="h-full bg-blue-500 w-0 transition-all"></div>
-        </div>
-        <p id="status" class="mt-4 text-xs font-bold tracking-widest text-blue-400 uppercase">Processing: Stay on this
-            tab</p>
-    </div>
-
-    <!-- UI: Preview -->
-    <div id="result-modal" class="fixed inset-0 bg-black/95 z-50 hidden flex-col items-center justify-center p-6">
-        <video id="final-video" class="max-h-[75vh] rounded-lg border border-slate-800" controls></video>
-        <div class="mt-6 flex gap-4">
-            <a id="dl-link"
-                class="bg-blue-600 hover:bg-blue-500 px-10 py-3 rounded-full font-bold cursor-pointer">Download
-                Video</a>
-            <button onclick="location.reload()" class="bg-slate-800 px-10 py-3 rounded-full font-bold">New
-                Project</button>
-        </div>
-    </div>
-
-    <script>
-        // ==========================================
-        // STATE STORAGE
-        // ==========================================
-        let slots = {};
-        let slotIndexCounter = 0;
-
-        // ==========================================
-        // UI INTERACTIONS
-        // ==========================================
-
-        /**
-         * Links the uploaded video file to the specific slot and generates a small preview thumbnail.
-         */
-        function handleFileUpload(index, input) {
-            const file = input.files[0];
-            slots[index].file = file;
-            const previewEl = document.getElementById('preview-' + index);
-            const thumbContainer = document.getElementById('thumb-container-' + index);
-
-            if (file) {
-                previewEl.src = URL.createObjectURL(file);
-                thumbContainer.classList.remove('hidden');
-            } else {
-                previewEl.src = "";
-                thumbContainer.classList.add('hidden');
-            }
-        }
-
-        /**
-         * Dynamically appends a new ranking slot to the DOM and links it to internal storage.
-         */
-        function addSlot(appendAtBottom = false) {
-            const i = slotIndexCounter++;
-            slots[i] = { file: null, label: '' };
-            const list = document.getElementById('slots-list');
-            
-            const div = document.createElement('div');
-            div.className = "slot-item glass p-4 mt-3 rounded-xl flex gap-3 relative cursor-grab active:cursor-grabbing hover:bg-slate-800 transition-colors";
-            div.dataset.origIndex = i;
-            div.innerHTML = `
-                <div onclick="removeSlot(this)" class="absolute -right-2 -top-2 bg-red-600 hover:bg-red-500 rounded-full w-5 h-5 flex items-center justify-center text-white shadow-lg text-[10px] font-black pointer-events-auto cursor-pointer z-10 transition-colors">X</div>
-                <div class="rank-badge absolute -top-3 -left-2 text-[9px] font-black px-2 py-1 rounded shadow-lg tracking-widest transform transition-all"></div>
-                
-                <div class="flex flex-col items-center self-center gap-1 w-6">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
-                    <div class="rank-number text-xl font-black italic text-slate-500 text-center"></div>
-                </div>
-
-                <div class="flex-1 mt-1 space-y-2 self-center">
-                    <input type="file" accept="video/*" onchange="handleFileUpload(${i}, this)" class="text-[10px] block w-full text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-slate-700 file:text-blue-300 transition-colors hover:file:bg-slate-600 cursor-pointer">
-                    <input type="text" placeholder="Reveal text" oninput="slots[${i}].label = this.value" class="rank-label-input font-bold">
-                </div>
-                <div id="thumb-container-${i}" class="w-16 h-16 mt-1 hidden shrink-0 rounded-lg overflow-hidden border-2 border-slate-700 bg-black/50 ml-1 hover:border-slate-400 transition-colors">
-                    <video id="preview-${i}" class="w-full h-full object-cover pointer-events-none" muted loop playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
-                </div>
-            `;
-            
-            if (appendAtBottom) {
-                list.appendChild(div);
-            } else {
-                list.insertBefore(div, list.firstChild);
-            }
-            updateRankLabels();
-        }
-
-        function removeSlot(btn) {
-            btn.closest('.slot-item').remove();
-            updateRankLabels();
-        }
-
-        function init() {
-            const list = document.getElementById('slots-list');
-            for (let k = 0; k < 5; k++) {
-                addSlot(true);
-            }
-
-            // Init drag and drop sorting
-            new Sortable(list, {
-                animation: 150,
-                ghostClass: 'opacity-50',
-                onEnd: updateRankLabels
-            });
-        }
-
-        function updateRankLabels() {
-            const domSlots = Array.from(document.querySelectorAll('.slot-item'));
-            const total = domSlots.length;
-            
-            domSlots.forEach((el, index) => {
-                const newRank = total - index; 
-                const badgeEl = el.querySelector('.rank-badge');
-                const numEl = el.querySelector('.rank-number');
-                const inputEl = el.querySelector('.rank-label-input');
-                
-                let badgeText = `RANK ${newRank}`;
-                badgeEl.classList.remove('bg-slate-600', 'bg-blue-600', 'bg-yellow-500', 'text-black', 'scale-105', 'text-white');
-
-                if (newRank === total && total > 1) { 
-                    badgeEl.classList.add('bg-blue-600', 'text-white', 'scale-105');
-                    badgeText = `RANK ${newRank} (PLAYS FIRST)`; 
-                } else if (newRank === 1) { 
-                    badgeEl.classList.add('bg-yellow-500', 'text-black', 'scale-105');
-                    badgeText = "RANK 1 (THE WINNER!)"; 
-                } else {
-                    badgeEl.classList.add('bg-slate-600', 'text-white');
-                }
-
-                badgeEl.textContent = badgeText;
-                numEl.textContent = `#${newRank}`;
-                inputEl.placeholder = `Reveal text for Rank ${newRank}`;
-            });
-        }
-
-        // ==========================================
-        // CORE RENDERING ENGINE
-        // ==========================================
-        
-        /**
-         * Automates the HTML5 canvas to cycle through valid clips, render the HUD over them, 
-         * and compose them synchronously into a high-quality WebM export natively in-browser.
-         */
-        async function generateVideo() {
-            // Build orderedSlots based on current DOM to respect player's drag/drop sorting
-            const domItems = Array.from(document.querySelectorAll('.slot-item'));
-            const total = domItems.length;
-            const orderedSlots = []; // will populate from Rank 1 up to Rank N locally
-            
-            for (let i = total - 1; i >= 0; i--) {
-                const el = domItems[i];
-                const origIndex = el.dataset.origIndex; 
-                const rank = total - i;
-                orderedSlots.push({ ...slots[origIndex], id: rank });
-            }
-
-            const valid = orderedSlots.filter(s => s.file);
-            if (valid.length < 1) return alert("Please upload at least one video!");
-
-            document.getElementById('loader').classList.remove('hidden');
-            const canvas = document.getElementById('canvas');
-            const ctx = canvas.getContext('2d');
-            const cw = 720, ch = 1280;
-            canvas.width = cw; canvas.height = ch;
-
-            // Audio Setup (To keep video sound)
-            const audioCtx = new AudioContext();
-            const dest = audioCtx.createMediaStreamDestination();
-
-            // Recorder Setup
-            const stream = new MediaStream([canvas.captureStream(30).getTracks()[0], dest.stream.getTracks()[0]]);
-            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus', videoBitsPerSecond: 8000000 });
-            const chunks = [];
-
-            recorder.ondataavailable = e => chunks.push(e.data);
-            recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                document.getElementById('final-video').src = url;
-                document.getElementById('dl-link').href = url;
-                document.getElementById('dl-link').download = "ranking_final.webm";
-                document.getElementById('loader').classList.add('hidden');
-                document.getElementById('result-modal').classList.remove('hidden');
-            };
-
-            recorder.start();
-
-            const drawOverlays = (currentRank) => {
-                // TITLE SECTION
-                ctx.textAlign = 'center';
-                ctx.font = "900 65px 'Inter'";
-                ctx.lineWidth = 10;
-                ctx.strokeStyle = '#000';
-                ctx.lineJoin = 'round';
-
-                const drawText = (t, x, y, color) => {
-                    ctx.strokeText(t, x, y);
-                    ctx.fillStyle = color;
-                    ctx.fillText(t, x, y);
-                };
-
-                const t1 = document.getElementById('t1').value;
-                const t2 = document.getElementById('t2').value;
-                const w1 = ctx.measureText(t1 + " ").width;
-                const w2 = ctx.measureText(t2).width;
-                const startX1 = (cw - (w1 + w2)) / 2;
-                drawText(t1 + " ", startX1 + w1 / 2, 120, '#FFF');
-                drawText(t2, startX1 + w1 + w2 / 2, 120, '#eab308');
-
-                const t3 = document.getElementById('t3').value;
-                const t4 = document.getElementById('t4').value;
-                ctx.font = "900 60px 'Inter'";
-                const w3 = ctx.measureText(t3 + " ").width;
-                const w4 = ctx.measureText(t4).width;
-                const startX2 = (cw - (w3 + w4)) / 2;
-                drawText(t3 + " ", startX2 + w3 / 2, 200, '#38bdf8');
-                drawText(t4, startX2 + w3 + w4 / 2, 200, '#FFF');
-
-                // RANKING LIST SECTION
-                ctx.textAlign = 'left';
-                const colors = ['#eab308', '#38bdf8', '#ef4444', '#FFF', '#FFF'];
-
-                orderedSlots.forEach((s, i) => {
-                    const y = 320 + (i * 80);
-                    ctx.font = "900 55px 'Inter'";
-                    const color = colors[i] || '#FFF';
-                    drawText(`${s.id}.`, 50, y, color);
-
-                    // Show label if it matches the current rank or was higher
-                    if (s.id >= currentRank && s.label) {
-                        ctx.font = "900 35px 'Inter'";
-                        drawText(s.label.toLowerCase(), 120, y, '#FFF');
-                    }
-                });
-            };
-
-            const reversedValid = [...valid].reverse(); // Play bottom to top
-
-            for (let i = 0; i < reversedValid.length; i++) {
-                const clip = reversedValid[i];
-                const video = document.createElement('video');
-                video.src = URL.createObjectURL(clip.file);
-                video.muted = false; // We need the sound for the output
-
-                // Link video audio to recorder
-                await new Promise(resolve => {
-                    video.onloadedmetadata = () => {
-                        const source = audioCtx.createMediaElementSource(video);
-                        source.connect(dest);
-                        source.connect(audioCtx.destination);
-                        resolve();
-                    };
-                });
-
-                await video.play();
-
-                // Draw each frame of the video until it naturally ends
-                while (!video.ended) {
-                    ctx.fillStyle = '#000';
-                    ctx.fillRect(0, 0, cw, ch);
-
-                    // Scale video to fill background (Shorts style)
-                    const vAspect = video.videoWidth / video.videoHeight;
-                    let vw = cw, vh = cw / vAspect;
-                    if (vh < ch) { vh = ch; vw = ch * vAspect; }
-                    ctx.drawImage(video, (cw - vw) / 2, (ch - vh) / 2, vw, vh);
-
-                    drawOverlays(clip.id);
-
-                    document.getElementById('progress-bar').style.width = `${((i) / reversedValid.length) * 100}%`;
-                    await new Promise(r => requestAnimationFrame(r));
-                }
-
-                video.pause();
-                URL.revokeObjectURL(video.src);
-            }
-
-            recorder.stop();
-        }
-
-        init();
-    </script>
+    <!-- Footer -->
+    <footer class="border-t border-white/5 mt-20 text-center py-8">
+        <p class="text-xs text-slate-500">Built for creators. Open Source on GitHub.</p>
+    </footer>
 </body>
-
 </html>
