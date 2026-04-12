@@ -6,29 +6,7 @@
     <title>Creator Tools Suite</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            background-color: #0f172a;
-            color: #f8fafc;
-            font-family: 'Outfit', sans-serif;
-            background-image: radial-gradient(circle at 50% -20%, #064e3b, #0f172a);
-            min-height: 100vh;
-        }
-
-        .glass-card {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: all 0.3s ease;
-        }
-
-        .glass-card:hover {
-            border: 1px solid rgba(16, 185, 129, 0.4);
-            transform: translateY(-5px);
-            box-shadow: 0 20px 40px -10px rgba(16, 185, 129, 0.15);
-        }
-    </style>
+    <link href="src/css/global.css" rel="stylesheet">
 </head>
 <body class="antialiased selection:bg-emerald-500 selection:text-white">
     <!-- Navbar -->
@@ -64,7 +42,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative max-w-5xl mx-auto">
             
             <!-- Tool Card 1: Shorts Ranking -->
-            <a href="tools/shorts-ranking.html" class="glass-card rounded-2xl p-1 group block cursor-pointer">
+            <a href="src/components/shorts-ranking.html" class="glass-card interactive rounded-2xl p-1 group block cursor-pointer">
                 <div class="bg-slate-900/50 rounded-xl overflow-hidden aspect-video relative flex items-center justify-center border border-white/5">
                     <!-- Icon / Visual -->
                     <div class="absolute inset-0 bg-gradient-to-br from-emerald-600/20 to-teal-600/20 group-hover:opacity-100 opacity-50 transition-opacity"></div>
@@ -82,7 +60,7 @@
             </a>
 
             <!-- Tool Card 2: Auto Clipper -->
-            <a href="tools/auto-clipper.html" class="glass-card rounded-2xl p-1 transition-all group block cursor-pointer">
+            <a href="src/components/auto-clipper.html" class="glass-card interactive rounded-2xl p-1 transition-all group block cursor-pointer">
                 <div class="bg-slate-900/50 rounded-xl overflow-hidden aspect-video relative flex items-center justify-center border border-white/5">
                     <!-- Icon / Visual -->
                     <div class="absolute inset-0 bg-gradient-to-br from-emerald-600/20 to-teal-600/20 group-hover:opacity-100 opacity-50 transition-opacity"></div>
