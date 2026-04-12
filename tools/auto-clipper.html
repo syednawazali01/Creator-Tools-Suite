@@ -22,10 +22,17 @@
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* Custom Scrollbar for inner boxes */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        
+        @keyframes fade-in-up {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
     </style>
 </head>
 <body class="antialiased selection:bg-emerald-500 selection:text-white">
@@ -92,51 +99,54 @@
                             </select>
                         </div>
                     </div>
+                    
+                    <div class="mt-5">
+                        <label class="text-[10px] text-slate-400 block mb-2 uppercase font-bold tracking-wider">Clips to Extract</label>
+                        <select id="clip-count" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 text-slate-300">
+                            <option value="1">1 Clip (Fastest)</option>
+                            <option value="2">2 Clips</option>
+                            <option value="3" selected>3 Clips (Balanced)</option>
+                            <option value="5">5 Clips (Deep Scan)</option>
+                            <option value="10">Max Clips Options</option>
+                        </select>
+                    </div>
                 </div>
 
                 <button id="clip-btn" onclick="startMockProcessing()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-black text-xl transition-all shadow-[0_0_20px_rgba(5,150,105,0.4)] hover:shadow-[0_0_30px_rgba(5,150,105,0.6)] animate-pulse">
-                    FIND VIRAL CLIP
+                    FIND VIRAL CLIPS
                 </button>
 
             </div>
 
             <!-- Right Preview Panel -->
-            <div class="lg:col-span-7">
-                <div class="glass p-4 rounded-3xl h-[650px] relative overflow-hidden flex items-center justify-center border-slate-700/50 object-cover">
+            <div class="lg:col-span-7 relative h-[650px]">
+                
+                <!-- Full Cover Overlay for Processing -->
+                <div id="processing-overlay" class="absolute inset-0 bg-slate-900/95 z-30 hidden flex-col items-center justify-center p-8 backdrop-blur-md rounded-3xl border border-emerald-500/20">
+                    <div class="w-16 h-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin mb-6"></div>
+                    <h3 id="proc-title" class="text-xl font-black mb-2 text-emerald-400">Transcribing Audio...</h3>
+                    <p id="proc-desc" class="text-sm text-slate-400 font-mono text-center max-w-sm">Generating transcript for Gemini analysis.</p>
                     
+                    <div class="w-full max-w-xs mt-8 bg-slate-800 rounded-full h-1 overflow-hidden">
+                        <div id="proc-bar" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+
+                <!-- Feed Container -->
+                <div id="output-feed" class="glass rounded-3xl h-full overflow-y-auto pr-2 relative custom-scroll pb-6">
                     <!-- Empty State -->
-                    <div id="preview-empty" class="text-center opacity-40 flex flex-col items-center">
+                    <div id="preview-empty" class="h-full flex flex-col items-center justify-center opacity-40">
                         <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-4 text-emerald-500"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
-                        <p class="font-bold text-lg">Output Preview</p>
-                        <p class="text-xs">Your AI extracted 9:16 clip will appear here.</p>
+                        <p class="font-bold text-lg">Clip Dashboard</p>
+                        <p class="text-xs">Your AI extracted clips will be listed here.</p>
                     </div>
 
-                    <!-- Processing UI Overlay -->
-                    <div id="processing-overlay" class="absolute inset-0 bg-slate-900/95 z-20 hidden flex-col items-center justify-center p-8 backdrop-blur-3xl">
-                        <div class="w-16 h-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin mb-6"></div>
-                        <h3 id="proc-title" class="text-xl font-black mb-2 text-emerald-400">Transcribing Audio...</h3>
-                        <p id="proc-desc" class="text-sm text-slate-400 font-mono text-center max-w-sm">Generating transcript for Gemini analysis.</p>
-                        
-                        <div class="w-full max-w-xs mt-8 bg-slate-800 rounded-full h-1 overflow-hidden">
-                            <div id="proc-bar" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
-                        </div>
+                    <!-- Dynamic Clips Injection -->
+                    <div id="clips-container" class="hidden flex-col gap-6 p-6">
+                        <!-- Populated heavily by Javascript -->
                     </div>
-
-                    <!-- The final result mockup -->
-                    <video id="result-video" class="hidden absolute h-full w-[365px] rounded-2xl shadow-2xl object-cover" autoplay loop playsinline></video>
-                    
-                    <!-- Caption Overlay Mock -->
-                    <div id="mock-captions" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[365px] text-center z-10 pointer-events-none transition-transform">
-                        <span id="mock-caption-text" class="text-[55px] leading-tight font-black uppercase inline-block transition-transform duration-100" style="text-shadow: 3px 3px 0 #000, -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 0 8px 20px rgba(0,0,0,0.9); font-family: 'Outfit', sans-serif;"></span>
-                    </div>
-
                 </div>
 
-                <div id="post-clip-actions" class="hidden mt-6 flex gap-4 justify-center animate-fade-in-up">
-                    <button onclick="startCaptionMock()" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-black text-lg transition-all shadow-[0_0_20px_rgba(37,99,235,0.3)] active:scale-95 border border-blue-500">
-                        + ADD AI CAPTIONS
-                    </button>
-                </div>
             </div>
         </div>
     </main>
@@ -155,6 +165,7 @@
             const videoInput = document.getElementById('video-upload').files[0];
             const apiKey = document.getElementById('api-key').value;
             const remember = document.getElementById('remember-key').checked;
+            const extractCount = parseInt(document.getElementById('clip-count').value);
 
             if (!videoInput) return alert("Please upload a long-form video first.");
             if (!apiKey) return alert("Please enter your Gemini API Key to use the AI engine.");
@@ -167,6 +178,10 @@
             }
 
             document.getElementById('preview-empty').classList.add('hidden');
+            const clipContainer = document.getElementById('clips-container');
+            clipContainer.classList.add('hidden');
+            clipContainer.innerHTML = ''; // wipe previous
+            
             const overlay = document.getElementById('processing-overlay');
             overlay.classList.remove('hidden');
             overlay.classList.add('flex');
@@ -174,6 +189,11 @@
             const title = document.getElementById('proc-title');
             const desc = document.getElementById('proc-desc');
             const bar = document.getElementById('proc-bar');
+
+            // Reset
+            bar.style.transition = "none";
+            bar.style.width = "0%";
+            setTimeout(() => bar.style.transition = "all 0.3s", 50);
 
             // Simulate Transcribing
             title.textContent = "Extracting Audio Transcript...";
@@ -183,37 +203,79 @@
 
             // Simulate Gemini
             title.textContent = "Querying Gemini AI...";
-            desc.textContent = `Analyzing transcript with API key ${apiKey.substring(0,6)}... to find the highest retention moments.`;
+            desc.textContent = `Analyzing transcript to find ${extractCount} high-retention moments...`;
             bar.style.width = "50%";
             await new Promise(r => setTimeout(r, 3000));
 
             // Simulate Cropping
-            title.textContent = "Rendering 9:16 Custom Crop...";
-            desc.textContent = "Cutting clip from 01:23 to 01:53 and applying fluid tracking.";
+            title.textContent = "Rendering Grid Layouts...";
+            desc.textContent = `Tracking subjects and cutting ${extractCount} native clips...`;
             bar.style.width = "85%";
             await new Promise(r => setTimeout(r, 2000));
 
+            // Generate the Clips Feed
+            const videoURL = URL.createObjectURL(videoInput);
+            
+            for (let i = 0; i < extractCount; i++) {
+                const score = Math.floor(Math.random() * 15 + 85); // 85-99
+                
+                // Add staggered animation delay
+                const delay = i * 0.15;
+
+                clipContainer.innerHTML += `
+                    <div class="flex flex-col md:flex-row gap-6 bg-slate-900/60 p-5 rounded-[2rem] border border-white/5 animate-fade-in-up" style="animation-delay: ${delay}s; opacity: 0;">
+                        <!-- Video Box -->
+                        <div class="relative w-full md:w-[240px] aspect-[9/16] rounded-2xl overflow-hidden shrink-0 shadow-[0_10px_40px_rgba(0,0,0,0.5)] bg-black">
+                            <video id="res-vid-${i}" class="absolute h-full w-full object-cover" src="${videoURL}" autoplay loop muted playsinline></video>
+                            
+                            <div id="mock-subtitles-${i}" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[220px] text-center z-10 pointer-events-none transition-transform">
+                                <span id="mock-subtitle-text-${i}" class="text-[35px] leading-tight font-black uppercase inline-block transition-transform duration-100" style="text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 6px 15px rgba(0,0,0,0.9); font-family: 'Outfit', sans-serif;"></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Meta Box -->
+                        <div class="flex flex-col flex-grow py-2">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="font-black text-xl text-white">Clip #${i+1}</h3>
+                                <span class="bg-emerald-500/10 text-emerald-400 font-bold px-3 py-1.5 rounded-xl text-[11px] border border-emerald-500/20 tracking-wider">SCORE: ${score}/100</span>
+                            </div>
+                            <p class="text-xs text-slate-400 leading-relaxed mb-6">AI detected a strong hook pattern. It contains multiple dynamic visual shifts and engaging audio pacing suitable for vertical feeds.</p>
+                            
+                            <div class="mt-auto space-y-3" id="post-clip-actions-${i}">
+                                <button onclick="startSubtitleMock(${i})" class="w-full bg-blue-600 hover:bg-blue-500 py-3.5 rounded-xl font-bold text-sm transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] active:scale-95 border border-blue-500 flex items-center justify-center gap-2 text-white">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                    + ADD AI SUBTITLES
+                                </button>
+                                <button class="w-full bg-slate-800 hover:bg-slate-700 py-3.5 rounded-xl font-bold text-sm transition-all text-slate-300 hover:text-white">
+                                    Download Raw Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Fast forward videos out of sync to make them look like different clips
+            setTimeout(() => {
+                for (let i = 0; i < extractCount; i++) {
+                    const vid = document.getElementById(`res-vid-${i}`);
+                    if(vid && vid.duration) {
+                        vid.currentTime = Math.random() * (vid.duration * 0.8);
+                    }
+                }
+            }, 500); // slight delay to allow metadata to load occasionally mapped
+
             // Done
             bar.style.width = "100%";
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise(r => setTimeout(r, 600)); // allow user to visually see 100% completion
             overlay.classList.add('hidden');
             overlay.classList.remove('flex');
-            
-            // Show the raw video but cropped to 9:16 to simulate the output
-            const resVid = document.getElementById('result-video');
-            resVid.src = URL.createObjectURL(videoInput);
-            resVid.classList.remove('hidden');
-            
-            // Fast forward into the video safely
-            resVid.onloadedmetadata = () => {
-                if(resVid.duration > 10) resVid.currentTime = resVid.duration / 3;
-            };
 
-            // Reveal phase 2 actions
-            document.getElementById('post-clip-actions').classList.remove('hidden');
+            clipContainer.classList.remove('hidden');
+            clipContainer.classList.add('flex');
         }
 
-        async function startCaptionMock() {
+        async function startSubtitleMock(index) {
             const overlay = document.getElementById('processing-overlay');
             overlay.classList.remove('hidden');
             overlay.classList.add('flex');
@@ -229,33 +291,34 @@
             title.textContent = "Generating Timestamps...";
             desc.textContent = "Using AI to align audio phonemes with exact video frames.";
             bar.style.width = "40%";
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 1200));
 
-            title.textContent = "Burning Custom Titles...";
-            desc.textContent = "Applying dynamic text strokes and highlights.";
+            title.textContent = "Burning Custom Subtitles...";
+            desc.textContent = "Applying dynamic text strokes and font highlights.";
             bar.style.width = "90%";
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 1200));
 
             bar.style.width = "100%";
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise(r => setTimeout(r, 400));
             overlay.classList.add('hidden');
             overlay.classList.remove('flex');
 
-            // Show Captions
-            document.getElementById('mock-captions').classList.remove('hidden');
+            // Show Subtitles on the SPECIFIC clip
+            document.getElementById(`mock-subtitles-${index}`).classList.remove('hidden');
             
             // Change export button text
-            document.getElementById('post-clip-actions').innerHTML = `
-                <button class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-black text-xl transition-all shadow-[0_0_20px_rgba(5,150,105,0.4)] active:scale-95 border border-emerald-500">
-                    ⬇ EXPORT FINAL CLIP
+            document.getElementById(`post-clip-actions-${index}`).innerHTML = `
+                <button class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-black text-sm transition-all shadow-[0_0_20px_rgba(5,150,105,0.4)] active:scale-95 border border-emerald-500 text-white flex gap-2 justify-center items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    EXPORT FINAL CLIP
                 </button>
             `;
 
-            // Animate captions
-            let words = ["WAIT", "THIS", "CLIP", "IS", "VIRAL", "🔥🔥"];
+            // Animate subtitles for this specific card
+            let words = ["WAIT", "THIS", "CONTENT", "IS", "VIRAL", "🔥🔥"];
             let colors = ["#FFF", "#FFF", "#38bdf8", "#FFF", "#eab308", "#FFF"];
             let wordIdx = 0;
-            const capEl = document.getElementById('mock-caption-text');
+            const capEl = document.getElementById(`mock-subtitle-text-${index}`);
             
             setInterval(() => {
                 capEl.textContent = words[wordIdx];
