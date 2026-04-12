@@ -182,104 +182,110 @@
 
         </div><!-- end left column -->
 
-        <!-- ── RIGHT COLUMN: Tools Panel ── -->
+        <!-- ── RIGHT COLUMN: Compact Toolbar ── -->
         <div class="flex flex-col gap-3">
 
-            <!-- Edit Operations -->
-            <div class="glass rounded-2xl p-4 border border-white/5">
-                <h2 class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-3">Edit Operations</h2>
-                <div class="space-y-2">
-                    <button onclick="splitAtPlayhead()"
-                            class="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 px-4 py-3 rounded-xl text-sm font-bold transition-colors text-left">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
-                        <span>Split at Playhead</span>
-                        <span class="kbd ml-auto">S</span>
-                    </button>
-                    <button id="delete-btn" onclick="deleteSelected()" disabled
-                            class="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 px-4 py-3 rounded-xl text-sm font-bold transition-colors text-left opacity-40">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                        <span>🗑 Delete Segment</span>
-                        <span class="kbd ml-auto">D</span>
-                    </button>
-                </div>
+            <!-- ── Edit Buttons ── -->
+            <div class="glass rounded-2xl p-4 border border-white/5 flex flex-col gap-2">
+                <p class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-1">Edit</p>
+
+                <!-- Split -->
+                <button onclick="splitAtPlayhead()"
+                        class="w-full flex items-center gap-3 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 px-4 py-3 rounded-xl font-bold text-sm transition-all text-emerald-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                    ✂ Split at Playhead
+                    <span class="kbd ml-auto">S</span>
+                </button>
+
+                <!-- Delete / Restore -->
+                <button id="delete-btn" onclick="deleteSelected()" disabled
+                        class="w-full flex items-center gap-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-4 py-3 rounded-xl font-bold text-sm transition-all text-red-400 opacity-40">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                    🗑 Delete Segment
+                    <span class="kbd ml-auto">D</span>
+                </button>
             </div>
 
-            <!-- Trim / In-Out -->
+            <!-- ── Trim (In / Out) ── -->
             <div class="glass rounded-2xl p-4 border border-white/5">
-                <h2 class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-3">Trim Range</h2>
-                <div class="grid grid-cols-2 gap-2 mb-3">
-                    <div class="bg-slate-900/70 rounded-xl p-2.5 text-center">
-                        <div class="text-[9px] text-amber-400 font-black uppercase tracking-widest mb-1">IN</div>
-                        <div id="in-display" class="text-lg font-black font-mono">0:00</div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-3">Trim</p>
+
+                <!-- IN row -->
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-black text-amber-400 w-7">IN</span>
+                        <span id="in-display" class="font-mono font-black text-sm text-white">0:00</span>
                     </div>
-                    <div class="bg-slate-900/70 rounded-xl p-2.5 text-center">
-                        <div class="text-[9px] text-amber-400 font-black uppercase tracking-widest mb-1">OUT</div>
-                        <div id="out-display" class="text-lg font-black font-mono">0:00</div>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
                     <button onclick="setInPoint()"
-                            class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 py-2.5 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="5 12 11 6"/><polyline points="5 12 11 18"/></svg>
+                            class="bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 5 19 12"/></svg>
                         Set In
                     </button>
+                </div>
+
+                <!-- OUT row -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-black text-amber-400 w-7">OUT</span>
+                        <span id="out-display" class="font-mono font-black text-sm text-white">0:00</span>
+                    </div>
                     <button onclick="setOutPoint()"
-                            class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 py-2.5 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5">
+                            class="bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 19 12 19 19 19"/></svg>
                         Set Out
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 18 19 12"/><polyline points="13 6 19 12"/></svg>
                     </button>
                 </div>
             </div>
 
-            <!-- Stats -->
+            <!-- ── Stats ── -->
             <div class="glass rounded-2xl p-4 border border-white/5">
-                <h2 class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-3">Output Preview</h2>
+                <p class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-3">Output</p>
                 <div class="grid grid-cols-3 gap-2">
                     <div class="bg-slate-900/70 rounded-xl p-2 text-center">
-                        <div id="stat-duration" class="text-base font-black text-emerald-400">0:00</div>
+                        <div id="stat-duration" class="text-sm font-black text-emerald-400">0:00</div>
                         <div class="text-[9px] text-slate-500 mt-0.5 font-bold uppercase">Duration</div>
                     </div>
                     <div class="bg-slate-900/70 rounded-xl p-2 text-center">
-                        <div id="stat-cuts" class="text-base font-black text-white">0</div>
+                        <div id="stat-cuts" class="text-sm font-black text-white">0</div>
                         <div class="text-[9px] text-slate-500 mt-0.5 font-bold uppercase">Cuts</div>
                     </div>
                     <div class="bg-slate-900/70 rounded-xl p-2 text-center">
-                        <div id="stat-segs" class="text-base font-black text-white">1</div>
+                        <div id="stat-segs" class="text-sm font-black text-white">1</div>
                         <div class="text-[9px] text-slate-500 mt-0.5 font-bold uppercase">Segments</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Format Selector -->
+            <!-- ── Format ── -->
             <div class="glass rounded-2xl p-4 border border-white/5">
-                <h2 class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-3">Export Format</h2>
+                <p class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-3">Format</p>
                 <div class="grid grid-cols-2 gap-2 mb-2">
                     <button id="fmt-webm" onclick="setFormat('webm')"
-                            class="fmt-btn py-2.5 rounded-xl text-sm font-black border border-emerald-500 bg-emerald-500/15 text-emerald-400 transition-all">
+                            class="fmt-btn py-2 rounded-xl text-sm font-black border border-emerald-500 bg-emerald-500/15 text-emerald-400 transition-all">
                         WebM
                     </button>
                     <button id="fmt-mp4" onclick="setFormat('mp4')"
-                            class="fmt-btn py-2.5 rounded-xl text-sm font-black border border-white/10 text-slate-400 transition-all hover:border-white/25">
+                            class="fmt-btn py-2 rounded-xl text-sm font-black border border-white/10 text-slate-400 transition-all hover:border-white/25">
                         MP4
                     </button>
                 </div>
-                <p id="fmt-note" class="text-[10px] text-slate-500 leading-relaxed">Fast export · no conversion</p>
+                <p id="fmt-note" class="text-[10px] text-slate-500">Fast export · no conversion</p>
             </div>
 
-            <!-- Export CTA -->
+            <!-- ── Export ── -->
             <button onclick="startExport()"
-                    class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-black text-lg transition-all shadow-[0_0_24px_rgba(16,185,129,.35)] flex items-center justify-center gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    class="w-full bg-emerald-600 hover:bg-emerald-500 py-3.5 rounded-2xl font-black text-base transition-all shadow-[0_0_20px_rgba(16,185,129,.35)] flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
                 Export Video
             </button>
 
             <!-- Re-open -->
-            <label for="vid-input2" class="cursor-pointer block text-center text-xs text-slate-500 hover:text-slate-300 transition-colors py-1.5 font-bold">↩ Open Different Video</label>
+            <label for="vid-input2" class="cursor-pointer block text-center text-xs text-slate-500 hover:text-slate-300 transition-colors py-1 font-bold">↩ Open Different Video</label>
             <input id="vid-input2" type="file" accept="video/*" onchange="onVideoLoaded(this)" class="hidden">
-        </div>
-    </div>
+        </div><!-- end right column -->
+    </div><!-- end grid -->
 
-
+</div><!-- end editor -->
 </div>
 
 <!-- ════ Toast notification ════ -->
