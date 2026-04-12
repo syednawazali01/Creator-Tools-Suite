@@ -32,6 +32,10 @@ This will configure and launch a local node server for you on your desktop.
 - [Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) - Hardware-accelerated frame composition
 - [MediaRecorder API](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder) - Muxes video overlays and native audio output together buffer-by-buffer.
 
+## Built with AI
+
+This entire suite, including its visual glassmorphism UI, client-side Canvas rendering logic, scalable repository architecture, and SortableJS physics integration, was written and maintained using Advanced Agentic Coding Assistants (Google Gemini).
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
