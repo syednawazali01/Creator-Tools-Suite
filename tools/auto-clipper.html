@@ -548,7 +548,7 @@
                 // Smooth Progress visual
                 const progress = ((vid.currentTime - clip.startSeconds) / (clip.endSeconds - clip.startSeconds)) * 100;
                 if(progBar && recorder.state === "recording") {
-                    progBar.style.width = \`\${Math.min(progress, 100)}%\`;
+                    progBar.style.width = `${Math.min(progress, 100)}%`;
                 }
             };
 

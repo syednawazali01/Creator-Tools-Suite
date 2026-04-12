@@ -5,20 +5,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Full Length Ranking Overlay</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
         body {
-            background: #0f172a;
+            background-color: #0f172a;
             color: #fff;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Outfit', sans-serif;
+            background-image: radial-gradient(circle at 0% 0%, #064e3b, #0f172a);
+            min-height: 100vh;
         }
 
         .glass {
             background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         input[type="text"] {
@@ -32,14 +35,14 @@
         }
 
         input[type="text"]:focus {
-            border-color: #3b82f6;
+            border-color: #10b981;
         }
     </style>
 </head>
 
-<body class="p-4 md:p-8">
+<body class="p-4 md:p-8 antialiased selection:bg-emerald-500 selection:text-white">
     <div class="max-w-4xl mx-auto">
-        <h1 class="text-2xl font-black mb-6 text-center text-blue-500 italic">RANKING OVERLAY (FULL LENGTH)</h1>
+        <h1 class="text-2xl font-black mb-6 text-center text-emerald-500 italic uppercase">Ranking Overlay Maker</h1>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- Left: Settings -->
@@ -51,7 +54,7 @@
                                 type="text" value="Ranking"></div>
                         <div><label class="text-[10px] text-yellow-500">Top Right (Yellow)</label><input id="t2"
                                 type="text" value="Funniest"></div>
-                        <div><label class="text-[10px] text-blue-400">Bottom Left (Blue)</label><input id="t3"
+                        <div><label class="text-[10px] text-emerald-400">Bottom Left (Green)</label><input id="t3"
                                 type="text" value="Water Park"></div>
                         <div><label class="text-[10px] text-slate-400">Bottom Right (White)</label><input id="t4"
                                 type="text" value="Moments"></div>
@@ -60,13 +63,13 @@
 
                 <div class="glass p-5 rounded-2xl">
                     <h2 class="text-xs font-bold uppercase text-slate-500 mb-2 tracking-widest">How It Works</h2>
-                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                    <p class="text-[11px] text-slate-400 leading-relaxed font-mono">
                         This creates a countdown video. It will combine your clips, playing <b>the highest rank first</b> and building up to Rank 1. The custom text labels will step-by-step reveal themselves!
                     </p>
                 </div>
 
                 <button onclick="generateVideo()" id="gen-btn"
-                    class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-black text-xl transition-all shadow-lg">
+                    class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-black text-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">
                     GENERATE FINAL VIDEO
                 </button>
             </div>
@@ -87,24 +90,24 @@
     <!-- UI: Loading Overlay -->
     <div id="loader" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col items-center justify-center">
         <div class="mb-4 text-center">
-            <span class="text-[10px] font-bold text-blue-500 tracking-widest uppercase animate-pulse">Live Rendering Preview</span>
+            <span class="text-[10px] font-bold text-emerald-500 tracking-widest uppercase animate-pulse">Live Rendering Preview</span>
         </div>
-        <canvas id="canvas" class="h-[55vh] w-auto rounded-xl border border-slate-700 shadow-2xl bg-black mb-8"></canvas>
+        <canvas id="canvas" class="h-[55vh] w-auto rounded-xl border border-slate-700 shadow-[0_0_40px_rgba(16,185,129,0.15)] bg-black mb-8"></canvas>
         <div class="w-64 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-            <div id="progress-bar" class="h-full bg-blue-500 w-0 transition-all"></div>
+            <div id="progress-bar" class="h-full bg-emerald-500 w-0 transition-all"></div>
         </div>
-        <p id="status" class="mt-4 text-xs font-bold tracking-widest text-blue-400 uppercase">Processing: Stay on this
+        <p id="status" class="mt-4 text-xs font-bold tracking-widest text-emerald-400 uppercase">Processing: Stay on this
             tab</p>
     </div>
 
     <!-- UI: Preview -->
     <div id="result-modal" class="fixed inset-0 bg-black/95 z-50 hidden flex-col items-center justify-center p-6">
-        <video id="final-video" class="max-h-[75vh] rounded-lg border border-slate-800" controls></video>
+        <video id="final-video" class="max-h-[75vh] rounded-lg border border-slate-800 shadow-[0_0_50px_rgba(16,185,129,0.2)]" controls></video>
         <div class="mt-6 flex gap-4">
             <a id="dl-link"
-                class="bg-blue-600 hover:bg-blue-500 px-10 py-3 rounded-full font-bold cursor-pointer">Download
+                class="bg-emerald-600 hover:bg-emerald-500 px-10 py-3 rounded-full font-bold cursor-pointer transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] text-white">Download
                 Video</a>
-            <button onclick="location.reload()" class="bg-slate-800 px-10 py-3 rounded-full font-bold">New
+            <button onclick="location.reload()" class="bg-slate-800 hover:bg-slate-700 px-10 py-3 rounded-full font-bold transition-colors">New
                 Project</button>
         </div>
     </div>
@@ -147,7 +150,7 @@
             const list = document.getElementById('slots-list');
             
             const div = document.createElement('div');
-            div.className = "slot-item glass p-4 mt-3 rounded-xl flex gap-3 relative cursor-grab active:cursor-grabbing hover:bg-slate-800 transition-colors";
+            div.className = "slot-item glass p-4 mt-3 rounded-xl flex gap-3 relative cursor-grab active:cursor-grabbing hover:bg-slate-800/80 transition-colors";
             div.dataset.origIndex = i;
             div.innerHTML = `
                 <div onclick="removeSlot(this)" class="absolute -right-2 -top-2 bg-red-600 hover:bg-red-500 rounded-full w-5 h-5 flex items-center justify-center text-white shadow-lg text-[10px] font-black pointer-events-auto cursor-pointer z-10 transition-colors">X</div>
@@ -159,10 +162,10 @@
                 </div>
 
                 <div class="flex-1 mt-1 space-y-2 self-center">
-                    <input type="file" accept="video/*" onchange="handleFileUpload(${i}, this)" class="text-[10px] block w-full text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-slate-700 file:text-blue-300 transition-colors hover:file:bg-slate-600 cursor-pointer">
-                    <input type="text" placeholder="Reveal text" oninput="slots[${i}].label = this.value" class="rank-label-input font-bold">
+                    <input type="file" accept="video/*" onchange="handleFileUpload(${i}, this)" class="text-[10px] block w-full text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-slate-700 file:text-emerald-400 transition-colors hover:file:bg-slate-600 cursor-pointer">
+                    <input type="text" placeholder="Reveal text" oninput="slots[${i}].label = this.value" class="rank-label-input font-bold bg-black/30 w-full px-3 py-2 rounded-md outline-none focus:ring-1 focus:ring-emerald-500 transition-all text-sm">
                 </div>
-                <div id="thumb-container-${i}" class="w-16 h-16 mt-1 hidden shrink-0 rounded-lg overflow-hidden border-2 border-slate-700 bg-black/50 ml-1 hover:border-slate-400 transition-colors">
+                <div id="thumb-container-${i}" class="w-16 h-16 mt-1 hidden shrink-0 rounded-lg overflow-hidden border-2 border-slate-700 bg-black/50 ml-1 hover:border-emerald-500 transition-colors">
                     <video id="preview-${i}" class="w-full h-full object-cover pointer-events-none" muted loop playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
                 </div>
             `;
@@ -205,10 +208,10 @@
                 const inputEl = el.querySelector('.rank-label-input');
                 
                 let badgeText = `RANK ${newRank}`;
-                badgeEl.classList.remove('bg-slate-600', 'bg-blue-600', 'bg-yellow-500', 'text-black', 'scale-105', 'text-white');
+                badgeEl.classList.remove('bg-slate-600', 'bg-emerald-600', 'bg-yellow-500', 'text-black', 'scale-105', 'text-white');
 
                 if (newRank === total && total > 1) { 
-                    badgeEl.classList.add('bg-blue-600', 'text-white', 'scale-105');
+                    badgeEl.classList.add('bg-emerald-600', 'text-white', 'scale-105');
                     badgeText = `RANK ${newRank} (PLAYS FIRST)`; 
                 } else if (newRank === 1) { 
                     badgeEl.classList.add('bg-yellow-500', 'text-black', 'scale-105');
@@ -278,7 +281,7 @@
             const drawOverlays = (currentRank) => {
                 // TITLE SECTION
                 ctx.textAlign = 'center';
-                ctx.font = "900 65px 'Inter'";
+                ctx.font = "900 65px 'Outfit'";
                 ctx.lineWidth = 10;
                 ctx.strokeStyle = '#000';
                 ctx.lineJoin = 'round';
@@ -299,27 +302,27 @@
 
                 const t3 = document.getElementById('t3').value;
                 const t4 = document.getElementById('t4').value;
-                ctx.font = "900 60px 'Inter'";
+                ctx.font = "900 60px 'Outfit'";
                 const w3 = ctx.measureText(t3 + " ").width;
                 const w4 = ctx.measureText(t4).width;
                 const startX2 = (cw - (w3 + w4)) / 2;
-                drawText(t3 + " ", startX2 + w3 / 2, 200, '#38bdf8');
+                drawText(t3 + " ", startX2 + w3 / 2, 200, '#10b981'); // Emerald
                 drawText(t4, startX2 + w3 + w4 / 2, 200, '#FFF');
 
                 // RANKING LIST SECTION
                 ctx.textAlign = 'left';
-                const colors = ['#eab308', '#38bdf8', '#ef4444', '#FFF', '#FFF'];
+                const colors = ['#eab308', '#10b981', '#ef4444', '#FFF', '#FFF']; // Added Emerald to slots
 
                 orderedSlots.forEach((s, i) => {
                     const y = 320 + (i * 80);
-                    ctx.font = "900 55px 'Inter'";
+                    ctx.font = "900 55px 'Outfit'";
                     const color = colors[i] || '#FFF';
                     drawText(`${s.id}.`, 50, y, color);
 
                     // Show label if it matches the current rank or was higher
                     if (s.id >= currentRank && s.label) {
-                        ctx.font = "900 35px 'Inter'";
-                        drawText(s.label.toLowerCase(), 120, y, '#FFF');
+                        ctx.font = "900 35px 'Outfit'";
+                        drawText(s.label.toUpperCase(), 120, y, '#FFF');
                     }
                 });
             };
