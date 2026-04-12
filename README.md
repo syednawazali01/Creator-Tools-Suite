@@ -18,8 +18,8 @@ Because this is a static client-side web application, you can simply open `index
 
 If you wish to run a clean local server Environment (to bypass CORS when working with local video fetching):
 ```bash
-git clone https://github.com/syednawazali01/New-Repo-Name.git
-cd New-Repo-Name
+git clone https://github.com/syednawazali01/Creator-Tools-Suite.git
+cd Creator-Tools-Suite
 npm install
 npm start
 ```
