@@ -1,247 +1,325 @@
-// ==========================================
-// STATE STORAGE
-// ==========================================
-let slots = {};
+/**
+ * ranking-engine.js — Auto Shorts Ranking Maker
+ * ──────────────────────────────────────────────
+ * Responsibilities:
+ *   1. Manage dynamic ranking slot creation / removal / drag-sorting
+ *   2. Render real-time rank badge labels as the user sorts
+ *   3. Drive the HTML5 Canvas rendering loop that composes the
+ *      final countdown video frame-by-frame
+ *   4. Record and export the composed stream as WebM via MediaRecorder
+ */
+
+// ─── State ───────────────────────────────────────────────────
+// slots stores the uploaded File and label text keyed by a stable
+// integer index that never changes even after drag-reordering.
+let slots            = {};
 let slotIndexCounter = 0;
 
-// ==========================================
-// UI INTERACTIONS
-// ==========================================
+// ─────────────────────────────────────────────────────────────
+// SLOT MANAGEMENT
+// ─────────────────────────────────────────────────────────────
 
 /**
- * Links the uploaded video file to the specific slot and generates a small preview thumbnail.
+ * handleFileUpload
+ * Called by the file input's onchange event inside each slot card.
+ * Stores the chosen File object and shows the video thumbnail preview.
  */
 function handleFileUpload(index, input) {
-    const file = input.files[0];
-    slots[index].file = file;
-    const previewEl = document.getElementById('preview-' + index);
+    const file          = input.files[0];
+    slots[index].file   = file;
+    const previewEl     = document.getElementById('preview-' + index);
     const thumbContainer = document.getElementById('thumb-container-' + index);
 
     if (file) {
         previewEl.src = URL.createObjectURL(file);
         thumbContainer.classList.remove('hidden');
     } else {
-        previewEl.src = "";
+        previewEl.src = '';
         thumbContainer.classList.add('hidden');
     }
 }
 
 /**
- * Dynamically appends a new ranking slot to the DOM and links it to internal storage.
+ * addSlot
+ * Creates a new draggable slot card and inserts it into the list.
+ * @param {boolean} appendAtBottom  true = append, false = prepend
  */
 function addSlot(appendAtBottom = false) {
-    const i = slotIndexCounter++;
-    slots[i] = { file: null, label: '' };
-    const list = document.getElementById('slots-list');
-    
-    const div = document.createElement('div');
-    div.className = "slot-item glass p-4 mt-3 rounded-xl flex gap-3 relative cursor-grab active:cursor-grabbing hover:bg-slate-800/80 transition-colors";
-    div.dataset.origIndex = i;
+    const i     = slotIndexCounter++;
+    slots[i]    = { file: null, label: '' };
+    const list  = document.getElementById('slots-list');
+
+    const div               = document.createElement('div');
+    div.className           = 'slot-item glass p-4 mt-3 rounded-xl flex gap-3 relative cursor-grab active:cursor-grabbing hover:bg-slate-800/80 transition-colors';
+    div.dataset.origIndex   = i;
+
     div.innerHTML = `
-        <div onclick="removeSlot(this)" class="absolute -right-2 -top-2 bg-red-600 hover:bg-red-500 rounded-full w-5 h-5 flex items-center justify-center text-white shadow-lg text-[10px] font-black pointer-events-auto cursor-pointer z-10 transition-colors">X</div>
-        <div class="rank-badge absolute -top-3 -left-2 text-[9px] font-black px-2 py-1 rounded shadow-lg tracking-widest transform transition-all"></div>
-        
+        <!-- Remove button -->
+        <div onclick="removeSlot(this)"
+             class="absolute -right-2 -top-2 bg-red-600 hover:bg-red-500 rounded-full w-5 h-5
+                    flex items-center justify-center text-white shadow-lg text-[10px] font-black
+                    pointer-events-auto cursor-pointer z-10 transition-colors">
+            X
+        </div>
+
+        <!-- Rank badge (updated by updateRankLabels) -->
+        <div class="rank-badge absolute -top-3 -left-2 text-[9px] font-black px-2 py-1
+                    rounded shadow-lg tracking-widest transform transition-all"></div>
+
+        <!-- Drag handle + rank number -->
         <div class="flex flex-col items-center self-center gap-1 w-6">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" class="text-slate-500">
+                <circle cx="9"  cy="12" r="1"/><circle cx="9"  cy="5"  r="1"/>
+                <circle cx="9"  cy="19" r="1"/><circle cx="15" cy="12" r="1"/>
+                <circle cx="15" cy="5"  r="1"/><circle cx="15" cy="19" r="1"/>
+            </svg>
             <div class="rank-number text-xl font-black italic text-slate-500 text-center"></div>
         </div>
 
+        <!-- File input + label text -->
         <div class="flex-1 mt-1 space-y-2 self-center">
-            <input type="file" accept="video/*" onchange="handleFileUpload(${i}, this)" class="text-[10px] block w-full text-slate-300 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-slate-700 file:text-emerald-400 transition-colors hover:file:bg-slate-600 cursor-pointer">
-            <input type="text" placeholder="Reveal text" oninput="slots[${i}].label = this.value" class="rank-label-input font-bold bg-black/30 w-full px-3 py-2 rounded-md outline-none focus:ring-1 focus:ring-emerald-500 transition-all text-sm">
+            <input type="file" accept="video/*"
+                   onchange="handleFileUpload(${i}, this)"
+                   class="text-[10px] block w-full text-slate-300
+                          file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0
+                          file:text-[10px] file:font-bold file:bg-slate-700 file:text-emerald-400
+                          hover:file:bg-slate-600 cursor-pointer">
+            <input type="text" placeholder="Reveal text"
+                   oninput="slots[${i}].label = this.value"
+                   class="rank-label-input font-bold bg-black/30 w-full px-3 py-2
+                          rounded-md outline-none focus:ring-1 focus:ring-emerald-500
+                          transition-all text-sm">
         </div>
-        <div id="thumb-container-${i}" class="w-16 h-16 mt-1 hidden shrink-0 rounded-lg overflow-hidden border-2 border-slate-700 bg-black/50 ml-1 hover:border-emerald-500 transition-colors">
-            <video id="preview-${i}" class="w-full h-full object-cover pointer-events-none" muted loop playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
+
+        <!-- Video thumbnail preview (shown after file selected) -->
+        <div id="thumb-container-${i}"
+             class="w-16 h-16 mt-1 hidden shrink-0 rounded-lg overflow-hidden
+                    border-2 border-slate-700 bg-black/50 ml-1 hover:border-emerald-500 transition-colors">
+            <video id="preview-${i}"
+                   class="w-full h-full object-cover pointer-events-none"
+                   muted loop playsinline
+                   onmouseover="this.play()" onmouseout="this.pause()"></video>
         </div>
     `;
-    
-    if (appendAtBottom) {
-        list.appendChild(div);
-    } else {
-        list.insertBefore(div, list.firstChild);
-    }
+
+    appendAtBottom
+        ? list.appendChild(div)
+        : list.insertBefore(div, list.firstChild);
+
     updateRankLabels();
 }
 
+/** removeSlot — removes a slot card and refreshes labels */
 function removeSlot(btn) {
     btn.closest('.slot-item').remove();
     updateRankLabels();
 }
 
+/**
+ * init
+ * Called on page load. Spawns 5 default slots and wires
+ * up SortableJS drag-and-drop reordering.
+ */
 function init() {
-    const list = document.getElementById('slots-list');
-    for (let k = 0; k < 5; k++) {
-        addSlot(true);
-    }
+    for (let k = 0; k < 5; k++) addSlot(true);
 
-    // Init drag and drop sorting
-    new Sortable(list, {
-        animation: 150,
+    new Sortable(document.getElementById('slots-list'), {
+        animation:  150,
         ghostClass: 'opacity-50',
-        onEnd: updateRankLabels
+        onEnd:      updateRankLabels,
     });
 }
 
+/**
+ * updateRankLabels
+ * Reads current DOM order and re-stamps rank numbers and badge colours.
+ * Top of list = highest rank (plays first in the countdown).
+ */
 function updateRankLabels() {
     const domSlots = Array.from(document.querySelectorAll('.slot-item'));
-    const total = domSlots.length;
-    
-    domSlots.forEach((el, index) => {
-        const newRank = total - index; 
-        const badgeEl = el.querySelector('.rank-badge');
-        const numEl = el.querySelector('.rank-number');
-        const inputEl = el.querySelector('.rank-label-input');
-        
-        let badgeText = `RANK ${newRank}`;
-        badgeEl.classList.remove('bg-slate-600', 'bg-emerald-600', 'bg-yellow-500', 'text-black', 'scale-105', 'text-white');
+    const total    = domSlots.length;
 
-        if (newRank === total && total > 1) { 
-            badgeEl.classList.add('bg-emerald-600', 'text-white', 'scale-105');
-            badgeText = `RANK ${newRank} (PLAYS FIRST)`; 
-        } else if (newRank === 1) { 
-            badgeEl.classList.add('bg-yellow-500', 'text-black', 'scale-105');
-            badgeText = "RANK 1 (THE WINNER!)"; 
+    domSlots.forEach((el, index) => {
+        const rank    = total - index;    // top card = highest rank
+        const badge   = el.querySelector('.rank-badge');
+        const numEl   = el.querySelector('.rank-number');
+        const labelEl = el.querySelector('.rank-label-input');
+
+        // Reset badge classes before applying new ones
+        badge.classList.remove('bg-slate-600', 'bg-emerald-600', 'bg-yellow-500',
+                               'text-black', 'scale-105', 'text-white');
+
+        if (rank === total && total > 1) {
+            // Highest rank — plays first
+            badge.classList.add('bg-emerald-600', 'text-white', 'scale-105');
+            badge.textContent = `RANK ${rank} (PLAYS FIRST)`;
+        } else if (rank === 1) {
+            // Winner / final reveal
+            badge.classList.add('bg-yellow-500', 'text-black', 'scale-105');
+            badge.textContent = 'RANK 1 (THE WINNER!)';
         } else {
-            badgeEl.classList.add('bg-slate-600', 'text-white');
+            badge.classList.add('bg-slate-600', 'text-white');
+            badge.textContent = `RANK ${rank}`;
         }
 
-        badgeEl.textContent = badgeText;
-        numEl.textContent = `#${newRank}`;
-        inputEl.placeholder = `Reveal text for Rank ${newRank}`;
+        numEl.textContent   = `#${rank}`;
+        labelEl.placeholder = `Reveal text for Rank ${rank}`;
     });
 }
 
-// ==========================================
-// CORE RENDERING ENGINE
-// ==========================================
+// ─────────────────────────────────────────────────────────────
+// CANVAS RENDERING & EXPORT ENGINE
+// ─────────────────────────────────────────────────────────────
 
+/**
+ * generateVideo
+ * Main export pipeline:
+ *   - Reads current slot order from the DOM
+ *   - Plays each clip in reverse rank order (highest rank → Rank 1)
+ *   - Each frame is drawn onto a 720×1280 canvas with HUD overlays
+ *   - MediaRecorder captures the canvas stream → WebM blob download
+ */
 async function generateVideo() {
-    // Build orderedSlots based on current DOM to respect player's drag/drop sorting
-    const domItems = Array.from(document.querySelectorAll('.slot-item'));
-    const total = domItems.length;
-    const orderedSlots = []; // will populate from Rank 1 up to Rank N locally
-    
+    // Build ordered slot list respecting the current drag order
+    const domItems    = Array.from(document.querySelectorAll('.slot-item'));
+    const total       = domItems.length;
+    const orderedSlots = [];
+
     for (let i = total - 1; i >= 0; i--) {
-        const el = domItems[i];
-        const origIndex = el.dataset.origIndex; 
-        const rank = total - i;
-        orderedSlots.push({ ...slots[origIndex], id: rank });
+        const origIndex = domItems[i].dataset.origIndex;
+        orderedSlots.push({ ...slots[origIndex], id: total - i });
     }
 
     const valid = orderedSlots.filter(s => s.file);
-    if (valid.length < 1) return alert("Please upload at least one video!");
+    if (valid.length < 1) return alert('Please upload at least one video!');
 
+    // ── Canvas setup ──
     document.getElementById('loader').classList.remove('hidden');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const cw = 720, ch = 1280;
-    canvas.width = cw; canvas.height = ch;
+    const canvas    = document.getElementById('canvas');
+    const ctx       = canvas.getContext('2d');
+    const CW = 720, CH = 1280;     // 9:16 portrait (Shorts format)
+    canvas.width    = CW;
+    canvas.height   = CH;
 
-    // Audio Setup (To keep video sound)
-    const audioCtx = new AudioContext();
-    const dest = audioCtx.createMediaStreamDestination();
+    // ── Audio routing ──
+    const audioCtx  = new AudioContext();
+    const audioDest = audioCtx.createMediaStreamDestination();
 
-    // Recorder Setup
-    const stream = new MediaStream([canvas.captureStream(30).getTracks()[0], dest.stream.getTracks()[0]]);
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus', videoBitsPerSecond: 8000000 });
+    // ── MediaRecorder ──
+    const stream    = new MediaStream([
+        canvas.captureStream(30).getTracks()[0],
+        audioDest.stream.getTracks()[0],
+    ]);
+    const recorder  = new MediaRecorder(stream, {
+        mimeType:          'video/webm;codecs=vp9,opus',
+        videoBitsPerSecond: 8_000_000,
+    });
     const chunks = [];
 
     recorder.ondataavailable = e => chunks.push(e.data);
     recorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        document.getElementById('final-video').src = url;
-        document.getElementById('dl-link').href = url;
-        document.getElementById('dl-link').download = "ranking_final.webm";
+        const url  = URL.createObjectURL(blob);
+        document.getElementById('final-video').src      = url;
+        document.getElementById('dl-link').href         = url;
+        document.getElementById('dl-link').download     = 'ranking_final.webm';
         document.getElementById('loader').classList.add('hidden');
         document.getElementById('result-modal').classList.remove('hidden');
     };
 
     recorder.start();
 
+    // ── HUD overlay renderer (called once per frame) ──
     const drawOverlays = (currentRank) => {
-        // TITLE SECTION
-        ctx.textAlign = 'center';
-        ctx.font = "900 65px 'Outfit'";
-        ctx.lineWidth = 10;
+        ctx.textAlign  = 'center';
+        ctx.lineWidth  = 10;
         ctx.strokeStyle = '#000';
-        ctx.lineJoin = 'round';
+        ctx.lineJoin   = 'round';
 
-        const drawText = (t, x, y, color) => {
-            ctx.strokeText(t, x, y);
-            ctx.fillStyle = color;
-            ctx.fillText(t, x, y);
+        /** Helper: draw outlined text at (x, y) with fill colour */
+        const drawText = (text, x, y, colour) => {
+            ctx.strokeText(text, x, y);
+            ctx.fillStyle = colour;
+            ctx.fillText(text, x, y);
         };
 
+        // Title row 1  (e.g. "Ranking FUNNIEST")
+        ctx.font = "900 65px 'Outfit'";
         const t1 = document.getElementById('t1').value;
         const t2 = document.getElementById('t2').value;
-        const w1 = ctx.measureText(t1 + " ").width;
+        const w1 = ctx.measureText(t1 + ' ').width;
         const w2 = ctx.measureText(t2).width;
-        const startX1 = (cw - (w1 + w2)) / 2;
-        drawText(t1 + " ", startX1 + w1 / 2, 120, '#FFF');
-        drawText(t2, startX1 + w1 + w2 / 2, 120, '#eab308');
+        const x1 = (CW - (w1 + w2)) / 2;
+        drawText(t1 + ' ', x1 + w1 / 2,        120, '#FFF');
+        drawText(t2,        x1 + w1 + w2 / 2,   120, '#eab308');   // amber
 
+        // Title row 2  (e.g. "Water Park MOMENTS")
+        ctx.font = "900 60px 'Outfit'";
         const t3 = document.getElementById('t3').value;
         const t4 = document.getElementById('t4').value;
-        ctx.font = "900 60px 'Outfit'";
-        const w3 = ctx.measureText(t3 + " ").width;
+        const w3 = ctx.measureText(t3 + ' ').width;
         const w4 = ctx.measureText(t4).width;
-        const startX2 = (cw - (w3 + w4)) / 2;
-        drawText(t3 + " ", startX2 + w3 / 2, 200, '#10b981'); // Emerald
-        drawText(t4, startX2 + w3 + w4 / 2, 200, '#FFF');
+        const x2 = (CW - (w3 + w4)) / 2;
+        drawText(t3 + ' ', x2 + w3 / 2,        200, '#10b981');    // emerald
+        drawText(t4,        x2 + w3 + w4 / 2,   200, '#FFF');
 
-        // RANKING LIST SECTION
+        // Rank list (reveals labels as the countdown builds up)
         ctx.textAlign = 'left';
-        const colors = ['#eab308', '#10b981', '#ef4444', '#FFF', '#FFF']; 
+        const RANK_COLOURS = ['#eab308', '#10b981', '#ef4444', '#FFF', '#FFF'];
 
-        orderedSlots.forEach((s, i) => {
-            const y = 320 + (i * 80);
-            ctx.font = "900 55px 'Outfit'";
-            const color = colors[i] || '#FFF';
-            drawText(`${s.id}.`, 50, y, color);
+        orderedSlots.forEach((slot, i) => {
+            const y     = 320 + i * 80;
+            const colour = RANK_COLOURS[i] || '#FFF';
+            ctx.font    = "900 55px 'Outfit'";
+            drawText(`${slot.id}.`, 50, y, colour);
 
-            // Show label if it matches the current rank or was higher
-            if (s.id >= currentRank && s.label) {
+            // Only show the label for ranks already revealed
+            if (slot.id >= currentRank && slot.label) {
                 ctx.font = "900 35px 'Outfit'";
-                drawText(s.label.toUpperCase(), 120, y, '#FFF');
+                drawText(slot.label.toUpperCase(), 120, y, '#FFF');
             }
         });
     };
 
-    const reversedValid = [...valid].reverse(); // Play bottom to top
+    // Play clips from highest rank down to Rank 1
+    const playOrder = [...valid].reverse();
 
-    for (let i = 0; i < reversedValid.length; i++) {
-        const clip = reversedValid[i];
+    for (let i = 0; i < playOrder.length; i++) {
+        const clip  = playOrder[i];
         const video = document.createElement('video');
-        video.src = URL.createObjectURL(clip.file);
-        video.muted = false; // We need the sound for the output
+        video.src   = URL.createObjectURL(clip.file);
+        video.muted = false;    // audio is routed to the recorder
 
-        // Link video audio to recorder
+        // Route clip audio into the recorder's audio destination
         await new Promise(resolve => {
             video.onloadedmetadata = () => {
-                const source = audioCtx.createMediaElementSource(video);
-                source.connect(dest);
-                source.connect(audioCtx.destination);
+                const srcNode = audioCtx.createMediaElementSource(video);
+                srcNode.connect(audioDest);
+                srcNode.connect(audioCtx.destination);
                 resolve();
             };
         });
 
         await video.play();
 
-        // Draw each frame of the video until it naturally ends
+        // Frame loop — draw until the clip ends naturally
         while (!video.ended) {
             ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, cw, ch);
+            ctx.fillRect(0, 0, CW, CH);
 
-            // Scale video to fill background (Shorts style)
-            const vAspect = video.videoWidth / video.videoHeight;
-            let vw = cw, vh = cw / vAspect;
-            if (vh < ch) { vh = ch; vw = ch * vAspect; }
-            ctx.drawImage(video, (cw - vw) / 2, (ch - vh) / 2, vw, vh);
+            // Cover-fit the video into the portrait canvas
+            const aspect = video.videoWidth / video.videoHeight;
+            let vw = CW, vh = CW / aspect;
+            if (vh < CH) { vh = CH; vw = CH * aspect; }
+            ctx.drawImage(video, (CW - vw) / 2, (CH - vh) / 2, vw, vh);
 
             drawOverlays(clip.id);
 
-            document.getElementById('progress-bar').style.width = `${((i) / reversedValid.length) * 100}%`;
+            document.getElementById('progress-bar').style.width =
+                `${(i / playOrder.length) * 100}%`;
+
             await new Promise(r => requestAnimationFrame(r));
         }
 
@@ -252,4 +330,5 @@ async function generateVideo() {
     recorder.stop();
 }
 
+// Bootstrap on page load
 init();

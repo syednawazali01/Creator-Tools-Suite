@@ -1,181 +1,226 @@
-// ============================================================
-// DEAD-AIR DESTROYER — Engine v1.0
-// ============================================================
-// Architecture:
-//   1. Decode video audio via OfflineAudioContext
-//   2. Scan per-chunk RMS to map silence/noise regions
-//   3. Build keep-segment array respecting all active filters
-//   4. Render waveform + segment timeline on canvas
-//   5. Export via real-time MediaRecorder, jump-cutting currentTime
-// ============================================================
+/**
+ * deadair-engine.js — Dead-Air Destroyer
+ * ────────────────────────────────────────
+ * Responsibilities:
+ *   1. Decode video audio into raw PCM via AudioContext
+ *   2. Scan 20ms chunks and compute per-chunk RMS dB levels
+ *   3. Apply active filters (silence / noise / breath / filler)
+ *      to build a keep-segment map
+ *   4. Render waveform visualiser + colour-coded timeline to canvas
+ *   5. Re-record only the keep segments via MediaRecorder canvas capture
+ *   6. Optionally transcode the WebM output to MP4 via FFmpeg.wasm
+ */
 
-// ─── Global State ───────────────────────────────────────────
-let audioBuffer   = null;   // decoded PCM data
-let videoDuration = 0;
-let videoFile     = null;
-let keepSegments  = [];     // [{start, end}]
+// ─── Global State ─────────────────────────────────────────────
+let audioBuffer   = null;   // Decoded PCM from the uploaded video
+let videoDuration = 0;      // Total duration in seconds
+let videoFile     = null;   // Original File object (needed for export)
+let keepSegments  = [];     // Array of {start, end} seconds to keep
 
+// ─── Active filters (toggled by the UI buttons) ────────────────
 const filters = {
-    silence : true,
-    noise   : true,
-    breath  : false,
-    filler  : false,
+    silence: true,   // Remove silent gaps
+    noise:   true,   // Remove low-level constant hiss
+    breath:  false,  // Remove breath / mouth sounds
+    filler:  false,  // Remove long pauses between sentences
 };
 
-let selectedFormat = 'webm'; // 'webm' | 'mp4'
+// ─── Export format ('webm' | 'mp4') ───────────────────────────
+let selectedFormat = 'webm';
 
+// ─────────────────────────────────────────────────────────────
+// FORMAT SELECTOR
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * setFormat
+ * Toggles the active export format and updates the UI buttons.
+ * @param {'webm'|'mp4'} fmt
+ */
 function setFormat(fmt) {
     selectedFormat = fmt;
-    // Toggle button styles
+
     const webmBtn = document.getElementById('fmt-webm');
     const mp4Btn  = document.getElementById('fmt-mp4');
     const note    = document.getElementById('fmt-note');
 
+    const ACTIVE   = 'format-btn py-3 rounded-xl text-sm font-black border border-emerald-500 bg-emerald-500/15 text-emerald-400 transition-all';
+    const INACTIVE = 'format-btn py-3 rounded-xl text-sm font-black border border-white/10 text-slate-400 transition-all hover:border-white/25';
+
     if (fmt === 'webm') {
-        webmBtn.className = 'format-btn py-3 rounded-xl text-sm font-black border border-emerald-500 bg-emerald-500/15 text-emerald-400 transition-all';
-        mp4Btn.className  = 'format-btn py-3 rounded-xl text-sm font-black border border-white/10 text-slate-400 transition-all hover:border-white/25';
+        webmBtn.className = ACTIVE;
+        mp4Btn.className  = INACTIVE;
         note.textContent  = 'WebM plays in all modern browsers and editors. Fast export, no conversion needed.';
     } else {
-        mp4Btn.className  = 'format-btn py-3 rounded-xl text-sm font-black border border-emerald-500 bg-emerald-500/15 text-emerald-400 transition-all';
-        webmBtn.className = 'format-btn py-3 rounded-xl text-sm font-black border border-white/10 text-slate-400 transition-all hover:border-white/25';
+        mp4Btn.className  = ACTIVE;
+        webmBtn.className = INACTIVE;
         note.textContent  = 'MP4 (H.264/AAC) — universally compatible. FFmpeg.wasm converts in-browser after recording. First use downloads ~10 MB.';
     }
 }
 
-// ─── Entry Point ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// VIDEO LOAD ENTRY POINT
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * onVideoLoaded
+ * Called by the file input's onchange event. Shows the editor,
+ * decodes audio, and triggers the first analysis pass.
+ */
 async function onVideoLoaded(input) {
     const file = input.files[0];
     if (!file) return;
     videoFile = file;
 
+    // Set video source
     const url = URL.createObjectURL(file);
-    const vid  = document.getElementById('preview-video');
-    vid.src    = url;
+    const vid = document.getElementById('preview-video');
+    vid.src   = url;
 
-    // Show editor
+    // Swap upload gate → editor
     document.getElementById('upload-gate').classList.add('hidden');
     document.getElementById('editor').classList.remove('hidden');
     document.getElementById('export-btn-wrap').classList.remove('hidden');
 
-    // Wait for metadata
+    // Wait for browser to parse the video header
     await new Promise(r => { vid.onloadedmetadata = r; });
     videoDuration = vid.duration;
-    document.getElementById('dur-end').textContent = fmtTime(videoDuration);
+    document.getElementById('dur-end').textContent   = fmtTime(videoDuration);
     document.getElementById('dur-start').textContent = '0:00';
 
-    // Playhead sync
+    // Keep the playhead in sync with video playback
     vid.ontimeupdate = () => {
         const pct = vid.currentTime / videoDuration;
-        document.getElementById('playhead').style.left = (pct * 100) + '%';
+        document.getElementById('playhead').style.left =
+            (pct * 100) + '%';
         document.getElementById('time-badge').textContent =
-            fmtTime(vid.currentTime) + ' / ' + fmtTime(videoDuration);
+            `${fmtTime(vid.currentTime)} / ${fmtTime(videoDuration)}`;
     };
 
-    // Decode audio
+    // Decode audio and run first analysis
     document.getElementById('seg-count').textContent = 'Decoding audio…';
     await decodeAudio(file);
     analyzeAndDraw();
 }
 
-// ─── Audio Decoding ──────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// AUDIO DECODING
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * decodeAudio
+ * Reads the video File as an ArrayBuffer and decodes it into
+ * a mono AudioBuffer for RMS analysis.
+ */
 async function decodeAudio(file) {
     const arrayBuf = await file.arrayBuffer();
     const audioCtx = new AudioContext();
     try {
         audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
     } finally {
-        audioCtx.close();
+        audioCtx.close();  // Always release the audio context
     }
 }
 
-// ─── Slider / Filter callbacks ───────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// SLIDER & FILTER CALLBACKS
+// ─────────────────────────────────────────────────────────────
+
+/** onSliderChange — syncs displayed values and retriggers analysis */
 function onSliderChange() {
-    document.getElementById('sil-val').textContent = document.getElementById('sil-slider').value + ' dB';
-    document.getElementById('pad-val').textContent = parseFloat(document.getElementById('pad-slider').value).toFixed(2) + ' s';
-    document.getElementById('kp-val').textContent  = parseFloat(document.getElementById('kp-slider').value).toFixed(2) + ' s';
+    document.getElementById('sil-val').textContent =
+        document.getElementById('sil-slider').value + ' dB';
+    document.getElementById('pad-val').textContent =
+        parseFloat(document.getElementById('pad-slider').value).toFixed(2) + ' s';
+    document.getElementById('kp-val').textContent  =
+        parseFloat(document.getElementById('kp-slider').value).toFixed(2) + ' s';
     analyzeAndDraw();
 }
 
+/** toggleFilter — flips a filter flag and retriggers analysis */
 function toggleFilter(key) {
     filters[key] = !filters[key];
-    const btn = document.getElementById('btn-' + key);
-    btn.classList.toggle('active', filters[key]);
+    document.getElementById('btn-' + key).classList.toggle('active', filters[key]);
     analyzeAndDraw();
 }
 
-// ─── Core Analysis ────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// CORE ANALYSIS ENGINE
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * analyzeAndDraw
+ * Full analysis pipeline:
+ *   1. Compute per-chunk RMS dB (20ms resolution)
+ *   2. Build a silence mask based on active filters
+ *   3. Merge too-short silent runs back into the keep set
+ *   4. Build the final keepSegments array with padding
+ *   5. Update stats and re-render visuals
+ */
 function analyzeAndDraw() {
     if (!audioBuffer) return;
 
+    // ── Read slider values ──
     const silThreshDB   = parseFloat(document.getElementById('sil-slider').value);
     const minSilenceSec = parseFloat(document.getElementById('pad-slider').value);
     const padding       = parseFloat(document.getElementById('kp-slider').value);
 
-    const sampleRate    = audioBuffer.sampleRate;
-    const pcm           = audioBuffer.getChannelData(0);       // mono view
-    const totalSamples  = pcm.length;
-    const chunkSamples  = Math.floor(sampleRate * 0.02);       // 20 ms chunks
+    // ── PCM extraction ──
+    const sampleRate   = audioBuffer.sampleRate;
+    const pcm          = audioBuffer.getChannelData(0);   // use channel 0 (mono)
+    const CHUNK_SMPLS  = Math.floor(sampleRate * 0.02);   // samples per 20ms chunk
+    const CHUNK_DUR    = 0.02;                             // seconds per chunk
+    const numChunks    = Math.floor(pcm.length / CHUNK_SMPLS);
 
-    // ── Compute per-chunk RMS dB ──
-    const numChunks     = Math.floor(totalSamples / chunkSamples);
-    const rmsDB         = new Float32Array(numChunks);
-
+    // ── Step 1: compute RMS dB for each 20ms chunk ──
+    const rmsDB = new Float32Array(numChunks);
     for (let c = 0; c < numChunks; c++) {
-        let sum = 0;
-        const off = c * chunkSamples;
-        for (let s = 0; s < chunkSamples; s++) sum += pcm[off + s] ** 2;
-        const rms = Math.sqrt(sum / chunkSamples);
-        rmsDB[c]  = rms > 0 ? 20 * Math.log10(rms) : -120;
+        let sumSq = 0;
+        const off = c * CHUNK_SMPLS;
+        for (let s = 0; s < CHUNK_SMPLS; s++) sumSq += pcm[off + s] ** 2;
+        const rms  = Math.sqrt(sumSq / CHUNK_SMPLS);
+        rmsDB[c]   = rms > 0 ? 20 * Math.log10(rms) : -120;
     }
 
-    // ── Compute noise floor for noise/breath filters ──
-    const sorted    = Float32Array.from(rmsDB).sort();
-    const noiseFloor = sorted[Math.floor(sorted.length * 0.1)]; // 10th percentile
+    // ── Step 2: derive the noise floor (10th percentile RMS) ──
+    const sorted     = Float32Array.from(rmsDB).sort();
+    const noiseFloor = sorted[Math.floor(sorted.length * 0.1)];
 
-    // ── Build silence mask ──
-    const chunkDur    = 0.02;
-    const silenceMask = new Uint8Array(numChunks); // 1 = remove
-
+    // ── Step 3: build silence mask (1 = remove this chunk) ──
+    const mask = new Uint8Array(numChunks);
     for (let c = 0; c < numChunks; c++) {
-        const db = rmsDB[c];
-
+        const db  = rmsDB[c];
         let remove = false;
 
-        // Dead silence
+        // Filter: dead silence
         if (filters.silence && db < silThreshDB) remove = true;
 
-        // Background hiss: just above noise floor but below a gentle threshold
+        // Filter: background hiss (just above noise floor but still quiet)
         if (filters.noise && !remove) {
-            const noiseThresh = noiseFloor + 12; // 12 dB above noise floor
-            if (db < noiseThresh && db < (silThreshDB + 10)) remove = true;
+            if (db < noiseFloor + 12 && db < silThreshDB + 10) remove = true;
         }
 
-        // Breaths: slightly louder transients, typically < silThresh + 15
+        // Filter: breaths / mouth sounds (slightly louder than silence)
         if (filters.breath && !remove) {
             if (db < silThreshDB + 15) remove = true;
         }
 
-        // Long pauses (filler): silence > 1s
-        // handled via run-length later
-
-        silenceMask[c] = remove ? 1 : 0;
+        mask[c] = remove ? 1 : 0;
     }
 
-    // ── Merge short sequences (run-length based) ──
-    // First pass: fill gaps shorter than minSilence
-    const minSilChunks = Math.ceil(minSilenceSec / chunkDur);
+    // ── Step 4: restore silent runs shorter than minSilenceSec ──
+    // (prevents cutting natural micro-pauses between words)
+    const minSilChunks = Math.ceil(minSilenceSec / CHUNK_DUR);
 
     if (filters.silence || filters.noise || filters.breath) {
         let i = 0;
         while (i < numChunks) {
-            if (silenceMask[i] === 1) {
-                // Count run
+            if (mask[i] === 1) {
                 let j = i;
-                while (j < numChunks && silenceMask[j] === 1) j++;
-                const runLen = j - i;
-                if (runLen < minSilChunks) {
-                    // Too short to cut — restore
-                    for (let k = i; k < j; k++) silenceMask[k] = 0;
+                while (j < numChunks && mask[j] === 1) j++;
+                // Keep this silent run if it's shorter than the threshold
+                if (j - i < minSilChunks) {
+                    for (let k = i; k < j; k++) mask[k] = 0;
                 }
                 i = j;
             } else {
@@ -184,21 +229,23 @@ function analyzeAndDraw() {
         }
     }
 
-    // Filler filter: remove pauses > 1s between speech bursts
+    // ── Step 5: filler filter — mark long gaps between speech bursts ──
     if (filters.filler) {
-        const fillerMin = Math.ceil(1.0 / chunkDur);
+        const fillerMinChunks = Math.ceil(1.0 / CHUNK_DUR);   // 1-second threshold
         let i = 0;
         while (i < numChunks) {
-            if (silenceMask[i] === 0) {
+            if (mask[i] === 0) {
+                // Find end of speech burst
                 let j = i;
-                while (j < numChunks && silenceMask[j] === 0) j++;
-                // gap ends at j — look further for another speech burst
+                while (j < numChunks && mask[j] === 0) j++;
+
+                // Find end of following gap
                 let k = j;
-                while (k < numChunks && silenceMask[k] === 1) k++;
-                const gapLen = k - j;
-                if (gapLen >= fillerMin) {
-                    // Mark as removable
-                    for (let m = j; m < k; m++) silenceMask[m] = 1;
+                while (k < numChunks && mask[k] === 1) k++;
+
+                // Mark the gap as removable if it's long enough
+                if (k - j >= fillerMinChunks) {
+                    for (let m = j; m < k; m++) mask[m] = 1;
                 }
                 i = k;
             } else {
@@ -207,19 +254,21 @@ function analyzeAndDraw() {
         }
     }
 
-    // ── Build keep segments ──
-    keepSegments = [];
-    let inKeep   = false;
+    // ── Step 6: convert silence mask → keep segments with padding ──
+    keepSegments  = [];
+    let inKeep    = false;
     let keepStart = 0;
-    const pad    = padding;
 
     for (let c = 0; c <= numChunks; c++) {
-        const keep = c < numChunks && silenceMask[c] === 0;
-        if (keep && !inKeep) {
-            keepStart = Math.max(0, c * chunkDur - pad);
+        const shouldKeep = c < numChunks && mask[c] === 0;
+
+        if (shouldKeep && !inKeep) {
+            // Start of a new keep segment (with a small leading pad)
+            keepStart = Math.max(0, c * CHUNK_DUR - padding);
             inKeep    = true;
-        } else if (!keep && inKeep) {
-            const keepEnd = Math.min(videoDuration, (c - 1) * chunkDur + pad);
+        } else if (!shouldKeep && inKeep) {
+            // End of a keep segment (with a small trailing pad)
+            const keepEnd = Math.min(videoDuration, (c - 1) * CHUNK_DUR + padding);
             if (keepEnd - keepStart > 0.05) {
                 keepSegments.push({ start: keepStart, end: keepEnd });
             }
@@ -227,163 +276,195 @@ function analyzeAndDraw() {
         }
     }
 
-    // Merge very close segments (< 0.1s gap)
+    // ── Step 7: merge segments separated by < 100ms (avoids micro-cuts) ──
     const merged = [];
     keepSegments.forEach(seg => {
-        if (merged.length > 0 && seg.start - merged[merged.length-1].end < 0.1) {
-            merged[merged.length-1].end = seg.end;
+        const prev = merged[merged.length - 1];
+        if (prev && seg.start - prev.end < 0.1) {
+            prev.end = seg.end;   // extend previous segment
         } else {
             merged.push({ ...seg });
         }
     });
     keepSegments = merged;
 
-    // ── Update stats ──
+    // ── Update stats panel ──
     const keptTime    = keepSegments.reduce((a, s) => a + (s.end - s.start), 0);
-    const removedTime = videoDuration - keptTime;
+    const removedTime = Math.max(0, videoDuration - keptTime);
     const cuts        = Math.max(0, keepSegments.length - 1);
 
-    document.getElementById('stat-removed').textContent  = fmtTime(Math.max(0, removedTime));
+    document.getElementById('stat-removed').textContent  = fmtTime(removedTime);
     document.getElementById('stat-kept').textContent     = fmtTime(keptTime);
     document.getElementById('stat-segments').textContent = cuts;
-    document.getElementById('seg-count').textContent     = `${cuts} jump cut${cuts !== 1 ? 's' : ''} · ${fmtTime(removedTime)} saved`;
+    document.getElementById('seg-count').textContent     =
+        `${cuts} jump cut${cuts !== 1 ? 's' : ''} · ${fmtTime(removedTime)} saved`;
 
-    // ── Render Visuals ──
-    drawWaveform(rmsDB, silenceMask, silThreshDB);
+    // ── Render visuals ──
+    drawWaveform(rmsDB, mask, silThreshDB);
     drawTimeline();
 }
 
-// ─── Waveform Renderer ────────────────────────────────────────
-function drawWaveform(rmsDB, silenceMask, silThreshDB) {
-    const canvas = document.getElementById('waveform-canvas');
-    const W      = canvas.parentElement.clientWidth;
-    const H      = canvas.height;
-    canvas.width = W;
-    const ctx    = canvas.getContext('2d');
+// ─────────────────────────────────────────────────────────────
+// WAVEFORM VISUALISER
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * drawWaveform
+ * Renders per-chunk RMS bars onto the waveform canvas.
+ * Bars are colour-coded: green = kept, red = removed.
+ * A dashed horizontal line marks the silence threshold.
+ */
+function drawWaveform(rmsDB, mask, silThreshDB) {
+    const canvas  = document.getElementById('waveform-canvas');
+    const W       = canvas.parentElement.clientWidth;
+    const H       = canvas.height;
+    canvas.width  = W;
+    const ctx     = canvas.getContext('2d');
+
     ctx.clearRect(0, 0, W, H);
 
-    const n     = rmsDB.length;
-    const barW  = W / n;
-
-    // Draw threshold line
+    // Threshold reference line
     const threshY = H - ((silThreshDB + 120) / 120) * H;
     ctx.strokeStyle = 'rgba(239,68,68,0.3)';
     ctx.setLineDash([4, 4]);
-    ctx.lineWidth = 1;
+    ctx.lineWidth   = 1;
     ctx.beginPath();
     ctx.moveTo(0, threshY);
     ctx.lineTo(W, threshY);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    for (let i = 0; i < n; i++) {
-        const db     = rmsDB[i];
-        const norm   = Math.max(0, (db + 120) / 120);
-        const barH   = norm * H;
-        const x      = i * barW;
-        const remove = silenceMask[i] === 1;
+    // Per-chunk bars
+    const n    = rmsDB.length;
+    const barW = W / n;
 
-        const color  = remove
-            ? 'rgba(239,68,68,0.55)'
-            : 'rgba(16,185,129,0.7)';
-        ctx.fillStyle = color;
-        ctx.fillRect(x, H - barH, Math.max(1, barW - 0.5), barH);
+    for (let i = 0; i < n; i++) {
+        const norm  = Math.max(0, (rmsDB[i] + 120) / 120);
+        const barH  = norm * H;
+        ctx.fillStyle = mask[i] === 1
+            ? 'rgba(239,68,68,0.55)'    // red  = removed
+            : 'rgba(16,185,129,0.7)';   // green = kept
+        ctx.fillRect(i * barW, H - barH, Math.max(1, barW - 0.5), barH);
     }
 }
 
-// ─── Timeline Renderer ────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// SEGMENT TIMELINE
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * drawTimeline
+ * Renders a proportional segmented bar below the waveform
+ * showing the ratio of kept (green) vs removed (red) time.
+ */
 function drawTimeline() {
-    const tl    = document.getElementById('segment-timeline');
+    const tl = document.getElementById('segment-timeline');
     tl.innerHTML = '';
     if (videoDuration === 0) return;
 
     keepSegments.forEach((seg, i) => {
-        // Gap before (removed)
+        // Gap before the first segment
         if (i === 0 && seg.start > 0) {
-            const el = document.createElement('div');
-            el.style.flex = (seg.start / videoDuration).toString();
-            el.className  = 'seg-remove h-full';
-            el.title      = 'REMOVED: 0s – ' + fmtTime(seg.start);
-            tl.appendChild(el);
+            tl.appendChild(makeBar('seg-remove', seg.start / videoDuration,
+                `REMOVED: 0s – ${fmtTime(seg.start)}`));
         }
-        // Keep
-        const kept = document.createElement('div');
-        kept.style.flex = ((seg.end - seg.start) / videoDuration).toString();
-        kept.className  = 'seg-keep h-full';
-        kept.title      = `KEPT: ${fmtTime(seg.start)} – ${fmtTime(seg.end)}`;
-        tl.appendChild(kept);
 
-        // Gap after
-        const nextStart = i + 1 < keepSegments.length ? keepSegments[i+1].start : videoDuration;
+        // Keep block
+        tl.appendChild(makeBar('seg-keep', (seg.end - seg.start) / videoDuration,
+            `KEPT: ${fmtTime(seg.start)} – ${fmtTime(seg.end)}`));
+
+        // Gap after this segment (before the next one or end)
+        const nextStart = i + 1 < keepSegments.length
+            ? keepSegments[i + 1].start
+            : videoDuration;
+
         if (nextStart > seg.end) {
-            const el = document.createElement('div');
-            el.style.flex = ((nextStart - seg.end) / videoDuration).toString();
-            el.className  = 'seg-remove h-full';
-            el.title      = `REMOVED: ${fmtTime(seg.end)} – ${fmtTime(nextStart)}`;
-            tl.appendChild(el);
+            tl.appendChild(makeBar('seg-remove', (nextStart - seg.end) / videoDuration,
+                `REMOVED: ${fmtTime(seg.end)} – ${fmtTime(nextStart)}`));
         }
     });
 
+    // Fallback: all red if nothing is kept
     if (keepSegments.length === 0) {
-        const el      = document.createElement('div');
-        el.style.flex = '1';
-        el.className  = 'seg-remove h-full';
-        tl.appendChild(el);
+        tl.appendChild(makeBar('seg-remove', 1, 'REMOVED: all audio below threshold'));
     }
 }
 
-// ─── Export Engine ────────────────────────────────────────────
+/** makeBar — creates a flex timeline segment div */
+function makeBar(className, flex, title) {
+    const el      = document.createElement('div');
+    el.style.flex = flex.toString();
+    el.className  = className + ' h-full';
+    el.title      = title;
+    return el;
+}
+
+// ─────────────────────────────────────────────────────────────
+// EXPORT ENGINE
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * startExport
+ * Renders the final video by seeking srcVid to each keep segment
+ * in sequence and capturing frames via canvas + MediaRecorder.
+ * If the user chose MP4, runs FFmpeg.wasm transcoding after recording.
+ */
 async function startExport() {
-    if (keepSegments.length === 0) return alert('No segments to export! Adjust your filters.');
+    if (keepSegments.length === 0) {
+        return alert('No segments to export! Try adjusting your filters.');
+    }
 
+    // Show processing overlay
     const overlay = document.getElementById('export-overlay');
-    overlay.classList.remove('hidden');
-    overlay.classList.add('flex');
-
     const title   = document.getElementById('exp-title');
     const desc    = document.getElementById('exp-desc');
     const bar     = document.getElementById('exp-bar');
 
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
     title.textContent = 'Preparing Engine…';
     bar.style.width   = '0%';
 
-    // Build a hidden video element for frame-accurate scrubbing
+    // ── Source video element (hidden, used for scrubbing) ──
     const srcVid  = document.createElement('video');
     srcVid.src    = URL.createObjectURL(videoFile);
     srcVid.muted  = false;
     document.body.appendChild(srcVid);
-
     await new Promise(r => { srcVid.onloadedmetadata = r; });
 
-    // Canvas + audio for recording
+    // ── Canvas for frame composition ──
     const canvas  = document.createElement('canvas');
     canvas.width  = srcVid.videoWidth  || 1280;
     canvas.height = srcVid.videoHeight || 720;
     const ctx     = canvas.getContext('2d');
 
+    // ── Audio routing ──
     const audioCtx = new AudioContext();
-    const dest     = audioCtx.createMediaStreamDestination();
-    const srcNode  = audioCtx.createMediaElementSource(srcVid);
-    srcNode.connect(dest);
+    const audioDest = audioCtx.createMediaStreamDestination();
+    const srcNode   = audioCtx.createMediaElementSource(srcVid);
+    srcNode.connect(audioDest);
     srcNode.connect(audioCtx.destination);
 
+    // ── MediaRecorder ──
     const stream   = new MediaStream([
         canvas.captureStream(30).getVideoTracks()[0],
-        dest.stream.getAudioTracks()[0]
+        audioDest.stream.getAudioTracks()[0],
     ]);
-
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 6_000_000 });
-    const chunks   = [];
+    const recorder = new MediaRecorder(stream, {
+        mimeType:          'video/webm',
+        videoBitsPerSecond: 6_000_000,
+    });
+    const chunks = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
+    // ── onstop: optionally convert to MP4, then show result ──
     recorder.onstop = async () => {
         const webmBlob = new Blob(chunks, { type: 'video/webm' });
 
         let finalBlob = webmBlob;
         let finalExt  = 'webm';
-        let finalMime = 'video/webm';
 
-        // ── MP4 conversion via FFmpeg.wasm ──
+        // ── Optional MP4 conversion via FFmpeg.wasm ──
         if (selectedFormat === 'mp4') {
             title.textContent = 'Converting to MP4…';
             desc.textContent  = 'Loading FFmpeg.wasm engine (one-time ~10 MB download)';
@@ -396,9 +477,9 @@ async function startExport() {
                 const ffmpeg = createFFmpeg({
                     log: false,
                     progress: ({ ratio }) => {
-                        bar.style.width = (95 + ratio * 4).toFixed(1) + '%';
-                        desc.textContent = `Converting… ${Math.round(ratio * 100)}%`;
-                    }
+                        bar.style.width   = (95 + ratio * 4).toFixed(1) + '%';
+                        desc.textContent  = `Converting… ${Math.round(ratio * 100)}%`;
+                    },
                 });
 
                 await ffmpeg.load();
@@ -406,33 +487,31 @@ async function startExport() {
 
                 ffmpeg.FS('writeFile', 'input.webm', await fetchFile(webmBlob));
                 await ffmpeg.run(
-                    '-i', 'input.webm',
-                    '-c:v', 'libx264',
-                    '-preset', 'ultrafast',
-                    '-crf', '23',
-                    '-c:a', 'aac',
-                    '-b:a', '128k',
-                    '-movflags', '+faststart',
+                    '-i',         'input.webm',
+                    '-c:v',       'libx264',
+                    '-preset',    'ultrafast',
+                    '-crf',       '23',
+                    '-c:a',       'aac',
+                    '-b:a',       '128k',
+                    '-movflags',  '+faststart',
                     'output.mp4'
                 );
 
                 const data = ffmpeg.FS('readFile', 'output.mp4');
-                finalBlob = new Blob([data.buffer], { type: 'video/mp4' });
-                finalExt  = 'mp4';
-                finalMime = 'video/mp4';
+                finalBlob  = new Blob([data.buffer], { type: 'video/mp4' });
+                finalExt   = 'mp4';
 
-                // Cleanup FS
                 ffmpeg.FS('unlink', 'input.webm');
                 ffmpeg.FS('unlink', 'output.mp4');
 
             } catch (ffErr) {
                 console.error('FFmpeg conversion failed:', ffErr);
-                desc.textContent = 'MP4 conversion failed — downloading WebM instead.';
+                desc.textContent = 'MP4 conversion failed — falling back to WebM.';
                 await new Promise(r => setTimeout(r, 1500));
-                // fall through with webm blob
             }
         }
 
+        // ── Cleanup ──
         document.body.removeChild(srcVid);
         audioCtx.close();
 
@@ -441,14 +520,11 @@ async function startExport() {
         overlay.classList.add('hidden');
         overlay.classList.remove('flex');
 
-        const resultVid = document.getElementById('result-video');
-        resultVid.src = url;
-
-        const dl = document.getElementById('dl-link');
-        dl.href     = url;
-        dl.download = 'clean_' + (videoFile.name.replace(/\.[^.]+$/, '') || 'video') + '.' + finalExt;
-
-        // Update download button label
+        // Populate result overlay
+        document.getElementById('result-video').src = url;
+        const dl     = document.getElementById('dl-link');
+        dl.href      = url;
+        dl.download  = `clean_${videoFile.name.replace(/\.[^.]+$/, '') || 'video'}.${finalExt}`;
         document.getElementById('dl-label').textContent = `Download ${finalExt.toUpperCase()}`;
 
         const keptTime = keepSegments.reduce((a, s) => a + (s.end - s.start), 0);
@@ -462,25 +538,31 @@ async function startExport() {
     recorder.start();
     bar.style.width = '5%';
 
-    // ── Render each keep segment ──
-    let rendered = 0;
-    for (const seg of keepSegments) {
-        title.textContent = `Rendering Jump Cuts…`;
-        desc.textContent  = `Segment ${rendered + 1} of ${keepSegments.length}  (${fmtTime(seg.start)} → ${fmtTime(seg.end)})`;
+    // ── Render each keep segment frame-by-frame ──
+    for (let i = 0; i < keepSegments.length; i++) {
+        const seg = keepSegments[i];
 
+        title.textContent = 'Rendering Jump Cuts…';
+        desc.textContent  =
+            `Segment ${i + 1} of ${keepSegments.length}  (${fmtTime(seg.start)} → ${fmtTime(seg.end)})`;
+
+        // Seek to segment start
         srcVid.currentTime = seg.start;
         await new Promise(r => { srcVid.onseeked = r; });
         await srcVid.play();
 
-        // Draw frames until this segment ends
+        // Capture frames until segment end
         while (srcVid.currentTime < seg.end && !srcVid.ended) {
             ctx.drawImage(srcVid, 0, 0, canvas.width, canvas.height);
-            const progress = rendered / keepSegments.length + ((srcVid.currentTime - seg.start) / (seg.end - seg.start)) / keepSegments.length;
-            bar.style.width = (5 + progress * 92).toFixed(1) + '%';
+
+            const segProgress = (srcVid.currentTime - seg.start) / (seg.end - seg.start);
+            const totalPct    = (i + segProgress) / keepSegments.length;
+            bar.style.width   = (5 + totalPct * 90).toFixed(1) + '%';
+
             await new Promise(r => requestAnimationFrame(r));
         }
+
         srcVid.pause();
-        rendered++;
     }
 
     bar.style.width = '100%';
@@ -488,7 +570,11 @@ async function startExport() {
     recorder.stop();
 }
 
-// ─── Helpers ─────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// UTILITIES
+// ─────────────────────────────────────────────────────────────
+
+/** fmtTime — converts seconds to "M:SS" display string */
 function fmtTime(sec) {
     if (!isFinite(sec) || sec < 0) return '0:00';
     const m = Math.floor(sec / 60);
@@ -496,7 +582,7 @@ function fmtTime(sec) {
     return `${m}:${s}`;
 }
 
-// Redraw waveform on window resize
+// Re-draw the waveform on window resize
 window.addEventListener('resize', () => {
     if (audioBuffer) analyzeAndDraw();
 });
