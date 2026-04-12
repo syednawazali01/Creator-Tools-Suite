@@ -14,7 +14,6 @@ let audioBuffer   = null;   // decoded PCM data
 let videoDuration = 0;
 let videoFile     = null;
 let keepSegments  = [];     // [{start, end}]
-let animFrame     = null;
 
 const filters = {
     silence : true,
@@ -60,11 +59,13 @@ async function onVideoLoaded(input) {
 
 // ─── Audio Decoding ──────────────────────────────────────────
 async function decodeAudio(file) {
-    const arrayBuf  = await file.arrayBuffer();
-    const offCtx    = new OfflineAudioContext(1, 1, 44100);  // dummy for decoding support
-    const audioCtx  = new AudioContext();
-    audioBuffer     = await audioCtx.decodeAudioData(arrayBuf);
-    audioCtx.close();
+    const arrayBuf = await file.arrayBuffer();
+    const audioCtx = new AudioContext();
+    try {
+        audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    } finally {
+        audioCtx.close();
+    }
 }
 
 // ─── Slider / Filter callbacks ───────────────────────────────
