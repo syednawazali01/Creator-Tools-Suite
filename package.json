@@ -1,0 +1,18 @@
+{
+  "name": "shorts-ranking-pro",
+  "version": "1.0.0",
+  "description": "Browser-based viral video ranking maker. Drag and drop clips, customize the HUD, and export as a .webm video directly in the browser.",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": [
+    "video-editor",
+    "youtube-shorts",
+    "tiktok",
+    "canvas-rendering",
+    "sortablejs"
+  ],
+  "author": "Syed Nawaz Ali",
+  "license": "MIT"
+}
