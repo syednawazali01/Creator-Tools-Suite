@@ -343,7 +343,7 @@
                     <div class="flex flex-col md:flex-row gap-6 bg-slate-900/60 p-5 rounded-[2rem] border border-white/5 animate-fade-in-up" style="animation-delay: ${delay}s; opacity: 0;">
                         <!-- Video Box -->
                         <div class="relative w-full md:w-[240px] aspect-[9/16] rounded-2xl overflow-hidden shrink-0 shadow-[0_10px_40px_rgba(0,0,0,0.5)] bg-black">
-                            <video id="res-vid-${i}" class="absolute h-full w-full object-cover" src="${videoURL}" autoplay muted playsinline crossorigin="anonymous"></video>
+                            <video id="res-vid-${i}" class="absolute h-full w-full object-cover" src="${videoURL}" controls muted playsinline crossorigin="anonymous"></video>
                             
                             <div id="mock-subtitles-${i}" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[220px] text-center z-10 pointer-events-none transition-transform">
                                 <span id="mock-subtitle-text-${i}" class="text-[40px] leading-tight font-black uppercase inline-block transition-transform duration-75" style="text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 6px 15px rgba(0,0,0,0.9); font-family: 'Outfit', sans-serif;"></span>
@@ -363,9 +363,13 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                                     + ADD AI SUBTITLES
                                 </button>
-                                <button class="w-full bg-slate-800 hover:bg-slate-700 py-3.5 rounded-xl font-bold text-sm transition-all text-slate-300 hover:text-white">
+                                <button id="dl-btn-${i}" onclick="startRecordDownload(${i})" class="w-full bg-slate-800 hover:bg-slate-700 py-3.5 rounded-xl font-bold text-sm transition-all text-slate-300 hover:text-white flex justify-center items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
                                     Download Raw Export [${start}s to ${end}s]
                                 </button>
+                                <div id="dl-progress-${i}" class="hidden w-full bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden shadow-inner">
+                                    <div id="dl-bar-${i}" class="bg-blue-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -473,6 +477,83 @@
                     }, 100);
                 }
             };
+        }
+
+        async function startRecordDownload(index) {
+            const clip = window.engineClipsData[index];
+            const vid = document.getElementById(`res-vid-${index}`);
+            const btn = document.getElementById(`dl-btn-${index}`);
+            const progContainer = document.getElementById(`dl-progress-${index}`);
+            const progBar = document.getElementById(`dl-bar-${index}`);
+
+            if (vid.captureStream === undefined) {
+                return alert("Your browser does not support local video recording.");
+            }
+
+            // Lock UI
+            btn.innerHTML = `<div class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> Processing RAM Extraction...`;
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'pointer-events-none');
+            progContainer.classList.remove('hidden');
+            progBar.style.width = "0%";
+
+            // Setup
+            vid.currentTime = clip.startSeconds;
+            vid.muted = false; // Capture audio
+            
+            const stream = vid.captureStream();
+            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            const chunks = [];
+
+            recorder.ondataavailable = e => {
+                if(e.data.size > 0) chunks.push(e.data);
+            };
+
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Viral_Clip_Extracted_${index+1}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+
+                // Restore UI 
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg> Download Raw Export [${clip.startSeconds}s to ${clip.endSeconds}s]`;
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'pointer-events-none');
+                progContainer.classList.add('hidden');
+                
+                vid.pause();
+                vid.muted = true;
+            };
+
+            // Grab existing timeupdate hook so we don't break the loop logic
+            const oldUpdate = vid.ontimeupdate;
+
+            vid.ontimeupdate = () => {
+                if(oldUpdate) oldUpdate(); // let the sub-timestamps or loops trigger
+
+                // Intercept Loop boundary to finalize recording
+                if(vid.currentTime >= clip.endSeconds && recorder.state === "recording") {
+                    recorder.stop();
+                    vid.ontimeupdate = oldUpdate; // remove recorder hook
+                }
+
+                // Smooth Progress visual
+                const progress = ((vid.currentTime - clip.startSeconds) / (clip.endSeconds - clip.startSeconds)) * 100;
+                if(progBar && recorder.state === "recording") {
+                    progBar.style.width = \`\${Math.min(progress, 100)}%\`;
+                }
+            };
+
+            recorder.start();
+            vid.play();
         }
     </script>
 </body>
