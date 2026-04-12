@@ -21,10 +21,18 @@ let selectedFormat = 'webm';
 let dragMode       = 'NONE';   // 'NONE' | 'IN' | 'OUT' | 'PLAYHEAD'
 let rafId          = null;
 
+// ─── Zoom / Pan State ─────────────────────────────────────────
+let zoomLevel      = 1;        // 1x = fit entire video, 2x = half visible, etc.
+let scrollOffset   = 0;        // seconds of timeline scrolled off-screen to the left
+const ZOOM_MIN     = 1;
+const ZOOM_MAX     = 50;       // max zoom magnification
+const ZOOM_STEP    = 1.25;     // multiplier per scroll detent
+
 // ─── Layout constants ─────────────────────────────────────────
 const RULER_H    = 20;     // px — height of the time ruler strip
 const HANDLE_HIT = 12;     // px — click hit zone around each trim handle
 const HANDLE_W   = 12;     // px — width of the handle flag tab
+const SCROLLBAR_H = 6;     // px — mini scrollbar height at bottom of canvas
 
 // ─── Color palette ────────────────────────────────────────────
 const C = {
@@ -67,6 +75,8 @@ async function onVideoLoaded(input) {
     inPoint  = 0;
     outPoint = videoDuration;
     selIndex = -1;
+    zoomLevel    = 1;
+    scrollOffset = 0;
 
     vid.onplay  = () => { rafId = requestAnimationFrame(tickPlayhead); };
     vid.onpause = () => { cancelAnimationFrame(rafId); rafId = null; drawTimeline(); };
@@ -130,7 +140,7 @@ function drawTimeline() {
     const W      = canvas.width;
     const H      = canvas.height;
     const BODY_Y = RULER_H;
-    const BODY_H = H - RULER_H;
+    const BODY_H = H - RULER_H - SCROLLBAR_H;
     const ctx    = canvas.getContext('2d');
 
     ctx.clearRect(0, 0, W, H);
@@ -221,7 +231,12 @@ function drawTimeline() {
     ctx.arc(playX, 9, 5, 0, Math.PI * 2);
     ctx.fill();
 
+    // ── Scroll bar at bottom ──
+    drawScrollbar(ctx, W, H);
+
+    // ── Update UI ──
     updateTimeBadge();
+    updateZoomLabel();
 }
 
 /**
@@ -258,45 +273,85 @@ function drawHandle(ctx, x, bodyY, H, type) {
 }
 
 /**
- * drawRuler — draws the time ruler at the top of the timeline.
+ * drawRuler — draws the time ruler at the top, adapting tick density to zoom.
  */
 function drawRuler(ctx, W) {
     ctx.fillStyle = C.ruler;
     ctx.fillRect(0, 0, W, RULER_H);
 
-    const step = videoDuration <= 30  ? 1
-               : videoDuration <= 120 ? 5
-               : videoDuration <= 600 ? 15
+    // Visible time window
+    const visibleDur = videoDuration / zoomLevel;
+
+    // Auto-pick tick interval based on visible duration, not total
+    const step = visibleDur <= 5   ? 0.25
+               : visibleDur <= 15  ? 0.5
+               : visibleDur <= 30  ? 1
+               : visibleDur <= 120 ? 5
+               : visibleDur <= 600 ? 15
                : 60;
 
     ctx.font      = '9px Outfit, sans-serif';
     ctx.textAlign = 'center';
 
-    for (let t = 0; t <= videoDuration; t += step) {
+    // Only draw ticks within the visible range (plus padding)
+    const tStart = Math.max(0, Math.floor(scrollOffset / step) * step);
+    const tEnd   = Math.min(videoDuration, scrollOffset + visibleDur + step);
+
+    const majorEvery = step * 2;
+
+    for (let t = tStart; t <= tEnd; t += step) {
         const x     = timeToX(t, W);
-        const major = t % (step * 2) === 0;
+        if (x < -10 || x > W + 10) continue;
+        const major = Math.abs(t % majorEvery) < 0.001 || Math.abs(t % majorEvery - majorEvery) < 0.001;
 
         ctx.fillStyle = major ? C.rulerLabel : C.rulerTick;
         ctx.fillRect(x, 0, 1, major ? RULER_H : RULER_H / 2);
 
         if (major) {
             ctx.fillStyle = C.rulerLabel;
-            ctx.fillText(fmtTime(t), x, RULER_H - 4);
+            ctx.fillText(fmtTimePrecise(t), x, RULER_H - 4);
         }
     }
 }
 
+/**
+ * drawScrollbar — renders a mini horizontal scrollbar at the bottom of the canvas.
+ */
+function drawScrollbar(ctx, W, H) {
+    const barY = H - SCROLLBAR_H;
+
+    // Track
+    ctx.fillStyle = 'rgba(30,41,59,0.9)';
+    ctx.fillRect(0, barY, W, SCROLLBAR_H);
+
+    // Thumb — proportional to visible range
+    const visibleFraction = 1 / zoomLevel;
+    const scrollFraction  = scrollOffset / videoDuration;
+    const thumbW = Math.max(20, W * visibleFraction);
+    const thumbX = scrollFraction * W;
+
+    ctx.fillStyle = zoomLevel > 1 ? 'rgba(16,185,129,0.4)' : 'rgba(100,116,139,0.25)';
+    ctx.beginPath();
+    ctx.roundRect(thumbX, barY + 1, thumbW, SCROLLBAR_H - 2, 3);
+    ctx.fill();
+}
+
 // ─────────────────────────────────────────────────────────────
-// TIMELINE MOUSE / POINTER EVENTS
+// TIMELINE MOUSE / POINTER EVENTS + ZOOM
 // ─────────────────────────────────────────────────────────────
 
 function wireTimelineEvents() {
     const canvas = document.getElementById('timeline-canvas');
 
-    // Determine which drag zone the pointer is in
-    const getMode = (clientX) => {
+    // ── Convert clientX to canvas pixel x ──
+    const toCanvasX = (clientX) => {
         const rect = canvas.getBoundingClientRect();
-        const x    = (clientX - rect.left) * (canvas.width / rect.width);
+        return (clientX - rect.left) * (canvas.width / rect.width);
+    };
+
+    // ── Determine which drag zone the pointer is in ──
+    const getMode = (clientX) => {
+        const x    = toCanvasX(clientX);
         const inX  = timeToX(inPoint,  canvas.width);
         const outX = timeToX(outPoint, canvas.width);
 
@@ -308,7 +363,6 @@ function wireTimelineEvents() {
     canvas.addEventListener('pointermove', e => {
         const { mode, x } = getMode(e.clientX);
 
-        // Update cursor when not dragging
         if (dragMode === 'NONE') {
             canvas.style.cursor = (mode === 'IN' || mode === 'OUT')
                 ? 'ew-resize' : 'col-resize';
@@ -337,7 +391,6 @@ function wireTimelineEvents() {
         dragMode           = mode;
         canvas.style.cursor = (mode === 'IN' || mode === 'OUT') ? 'ew-resize' : 'col-resize';
 
-        // If clicking playhead area → also select segment under click
         if (mode === 'PLAYHEAD') {
             const t = clamp(xToTime(x, canvas.width), 0, videoDuration);
             document.getElementById('preview-video').currentTime = t;
@@ -354,6 +407,66 @@ function wireTimelineEvents() {
         canvas.style.cursor = 'col-resize';
         drawTimeline();
     });
+
+    // ── Mouse wheel → zoom in/out, centered on pointer ──
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+
+        const px  = toCanvasX(e.clientX);
+        const tAtMouse = xToTime(px, canvas.width);   // time under the mouse
+
+        if (e.deltaY < 0) {
+            zoomLevel = Math.min(ZOOM_MAX, zoomLevel * ZOOM_STEP);
+        } else {
+            zoomLevel = Math.max(ZOOM_MIN, zoomLevel / ZOOM_STEP);
+        }
+
+        // Re-anchor so tAtMouse stays under the pointer
+        const visibleDur = videoDuration / zoomLevel;
+        const newOffset  = tAtMouse - (px / canvas.width) * visibleDur;
+        scrollOffset     = clampScroll(newOffset);
+
+        drawTimeline();
+    }, { passive: false });
+}
+
+/** Clamps scrollOffset to valid range */
+function clampScroll(offset) {
+    const maxScroll = videoDuration - videoDuration / zoomLevel;
+    return clamp(offset, 0, Math.max(0, maxScroll));
+}
+
+/** zoomIn — called from UI button */
+function zoomIn() {
+    const canvas = document.getElementById('timeline-canvas');
+    const centreTime = scrollOffset + (videoDuration / zoomLevel) / 2;
+    zoomLevel = Math.min(ZOOM_MAX, zoomLevel * ZOOM_STEP);
+    const visibleDur = videoDuration / zoomLevel;
+    scrollOffset = clampScroll(centreTime - visibleDur / 2);
+    drawTimeline();
+}
+
+/** zoomOut — called from UI button */
+function zoomOut() {
+    const canvas = document.getElementById('timeline-canvas');
+    const centreTime = scrollOffset + (videoDuration / zoomLevel) / 2;
+    zoomLevel = Math.max(ZOOM_MIN, zoomLevel / ZOOM_STEP);
+    const visibleDur = videoDuration / zoomLevel;
+    scrollOffset = clampScroll(centreTime - visibleDur / 2);
+    drawTimeline();
+}
+
+/** zoomFit — reset to 1x (fit entire video) */
+function zoomFit() {
+    zoomLevel    = 1;
+    scrollOffset = 0;
+    drawTimeline();
+}
+
+/** updateZoomLabel — updates the zoom display in the UI */
+function updateZoomLabel() {
+    const el = document.getElementById('zoom-label');
+    if (el) el.textContent = zoomLevel <= 1 ? 'Fit' : `${zoomLevel.toFixed(1)}x`;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -581,11 +694,15 @@ function getSegmentAt(t) {
     return segments.findIndex(s => t >= s.start && t < s.end);
 }
 
-/** timeToX — video time → canvas X pixel */
-function timeToX(t, W) { return (t / videoDuration) * W; }
+/** timeToX — video time → canvas X pixel (zoom + scroll aware) */
+function timeToX(t, W) {
+    return ((t - scrollOffset) / (videoDuration / zoomLevel)) * W;
+}
 
-/** xToTime — canvas X pixel → video time  */
-function xToTime(x, W) { return (x / W) * videoDuration; }
+/** xToTime — canvas X pixel → video time (zoom + scroll aware) */
+function xToTime(x, W) {
+    return scrollOffset + (x / W) * (videoDuration / zoomLevel);
+}
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
@@ -594,6 +711,15 @@ function fmtTime(sec) {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+}
+
+/** fmtTimePrecise — shows decimals when zoomed in far enough */
+function fmtTimePrecise(sec) {
+    if (!isFinite(sec) || sec < 0) return '0:00';
+    if (zoomLevel >= 8) {
+        return sec.toFixed(1) + 's';
+    }
+    return fmtTime(sec);
 }
 
 window.addEventListener('resize', resizeCanvas);

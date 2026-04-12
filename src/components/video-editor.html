@@ -188,23 +188,51 @@
                         <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Timeline</span>
                         <span class="text-[9px] text-slate-700">— drag <span style="color:#f59e0b">◀ ▶</span> handles to trim</span>
                     </div>
-                    <div class="flex items-center gap-3 text-[10px] font-bold text-slate-600">
-                        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-sm" style="background:rgba(16,185,129,.6)"></span> Active</span>
-                        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-sm" style="background:rgba(239,68,68,.35)"></span> Deleted</span>
-                        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-sm" style="background:#f59e0b"></span> Trim Handle</span>
-                        <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full" style="background:#fff"></span> Playhead</span>
+
+                    <!-- Zoom controls -->
+                    <div class="flex items-center gap-1.5">
+                        <!-- Legend -->
+                        <div class="flex items-center gap-2.5 text-[10px] font-bold text-slate-600 mr-3">
+                            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-sm" style="background:rgba(16,185,129,.6)"></span> Active</span>
+                            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-sm" style="background:rgba(239,68,68,.35)"></span> Deleted</span>
+                            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-sm" style="background:#f59e0b"></span> Trim</span>
+                        </div>
+
+                        <!-- Zoom − -->
+                        <button onclick="zoomOut()" title="Zoom Out"
+                                class="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                                style="background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); font-size:14px; line-height:1;">
+                            −
+                        </button>
+
+                        <!-- Zoom label -->
+                        <span id="zoom-label" class="text-[10px] font-black text-emerald-400 w-8 text-center select-none">Fit</span>
+
+                        <!-- Zoom + -->
+                        <button onclick="zoomIn()" title="Zoom In"
+                                class="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                                style="background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); font-size:14px; line-height:1;">
+                            +
+                        </button>
+
+                        <!-- Fit button -->
+                        <button onclick="zoomFit()" title="Fit All"
+                                class="ml-0.5 px-2 h-6 rounded-md text-[9px] font-bold text-slate-500 hover:text-white transition-colors"
+                                style="background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06);">
+                            FIT
+                        </button>
                     </div>
                 </div>
 
                 <!-- Canvas -->
                 <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.05);">
-                    <canvas id="timeline-canvas" height="90"></canvas>
+                    <canvas id="timeline-canvas" height="96"></canvas>
                 </div>
 
-                <!-- Time labels -->
+                <!-- Footer -->
                 <div class="flex justify-between mt-2 text-[9px] font-mono text-slate-700">
                     <span>0:00</span>
-                    <span id="time-badge-bottom" class="text-slate-500">Scrub or drag handles</span>
+                    <span class="text-slate-500">Scroll wheel to zoom · Drag handles to trim</span>
                     <span id="dur-label">—</span>
                 </div>
             </div>
