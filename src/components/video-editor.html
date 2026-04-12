@@ -120,7 +120,7 @@
 <div id="editor" class="hidden max-w-[1440px] mx-auto px-4 pb-8 pt-4 fade-up">
 
     <!-- Main Area: Preview + Tools -->
-    <div class="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 mb-4">
+    <div class="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4">
 
         <!-- ── Video Preview ── -->
         <div class="glass rounded-2xl overflow-hidden border border-white/5">
@@ -159,7 +159,23 @@
             </div>
         </div>
 
-        <!-- ── Tools Panel ── -->
+        <!-- ── Timeline (directly beneath the video) ── -->
+        <div class="glass rounded-2xl p-4 border border-white/5">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Timeline</span>
+                <div class="flex items-center gap-4 text-[10px] font-bold">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500/60 inline-block"></span>Active</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-red-500/30 inline-block"></span>Deleted</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block"></span>In/Out</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-white inline-block"></span>Playhead</span>
+                </div>
+            </div>
+            <div class="w-full rounded-xl overflow-hidden bg-slate-900/80 border border-white/5">
+                <canvas id="timeline-canvas" height="80"></canvas>
+            </div>
+            <p class="text-[10px] text-slate-600 mt-2">Click to seek · Drag to scrub · Use Split and Delete buttons to edit</p>
+        </div>
+
         <div class="flex flex-col gap-3">
 
             <!-- Edit Operations -->
@@ -256,30 +272,6 @@
         </div>
     </div>
 
-    <!-- ── Timeline ── -->
-    <div class="glass rounded-2xl p-4 border border-white/5">
-        <div class="flex items-center justify-between mb-2">
-            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Timeline</span>
-            <div class="flex items-center gap-4 text-[10px] font-bold">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500/60 inline-block"></span>Active
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-sm bg-red-500/30 inline-block"></span>Deleted
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block"></span>In/Out
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-sm bg-white inline-block"></span>Playhead
-                </span>
-            </div>
-        </div>
-        <div class="w-full rounded-xl overflow-hidden bg-slate-900/80 border border-white/5">
-            <canvas id="timeline-canvas" height="80"></canvas>
-        </div>
-        <p class="text-[10px] text-slate-600 mt-2">Click to seek · Drag to scrub · Use Split and Delete buttons to edit</p>
-    </div>
 
 </div>
 
