@@ -106,8 +106,7 @@ async function startLiveProcessing() {
 
         const promptText = `Analyze this video. You must extract exactly ${extractCount} highly viral, highly engaging short clips (around 15 seconds to 1 minute each). 
         For each clip, provide the virality score (0-100), reasoning, the exact startSeconds and endSeconds. 
-        CRITICALLY: provide a 'words' array containing exactly what is spoken during the clip. Each item in the words array must have a 'text' string (the exact word spoken) and a 'time' float (the exact timestamp in seconds of when that word is spoken relative to the whole video).
-        Respond ONLY with a valid raw JSON Array of objects matching this exact structure: [{"startSeconds": 5.0, "endSeconds": 20.0, "score": 95, "reasoning": "Engaging hook.", "words": [{"text": "Hello", "time": 5.1}, {"text": "world", "time": 5.8}]}]
+        Respond ONLY with a valid raw JSON Array of objects matching this exact structure: [{"startSeconds": 5.0, "endSeconds": 20.0, "score": 95, "reasoning": "Engaging hook."}]
         Do not use markdown blocks. Output pure JSON only.`;
 
         const promptRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${targetModel}:generateContent?key=${apiKey}`, {
@@ -130,17 +129,7 @@ async function startLiveProcessing() {
                                 startSeconds: { type: "NUMBER" },
                                 endSeconds: { type: "NUMBER" },
                                 score: { type: "NUMBER" },
-                                reasoning: { type: "STRING" },
-                                words: {
-                                    type: "ARRAY",
-                                    items: {
-                                        type: "OBJECT",
-                                        properties: {
-                                            text: { type: "STRING" },
-                                            time: { type: "NUMBER" }
-                                        }
-                                    }
-                                }
+                                reasoning: { type: "STRING" }
                             }
                         }
                     }
@@ -191,10 +180,6 @@ async function startLiveProcessing() {
                 <!-- Video Box -->
                 <div class="relative w-full md:w-[240px] aspect-[9/16] rounded-2xl overflow-hidden shrink-0 shadow-[0_10px_40px_rgba(0,0,0,0.5)] bg-black">
                     <video id="res-vid-${i}" class="absolute h-full w-full object-cover" src="${videoURL}" controls muted playsinline crossorigin="anonymous"></video>
-                    
-                    <div id="mock-subtitles-${i}" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[220px] text-center z-10 pointer-events-none transition-transform">
-                        <span id="mock-subtitle-text-${i}" class="text-[40px] leading-tight font-black uppercase inline-block transition-transform duration-75" style="text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 6px 15px rgba(0,0,0,0.9); font-family: 'Outfit', sans-serif;"></span>
-                    </div>
                 </div>
                 
                 <!-- Meta Box -->
@@ -206,11 +191,7 @@ async function startLiveProcessing() {
                     <p class="text-xs text-slate-400 leading-relaxed mb-6 font-mono">${reason}</p>
                     
                     <div class="mt-auto space-y-3" id="post-clip-actions-${i}">
-                        <button onclick="startLiveSubtitle(${i})" class="w-full bg-blue-600 hover:bg-blue-500 py-3.5 rounded-xl font-bold text-sm transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] active:scale-95 border border-blue-500 flex items-center justify-center gap-2 text-white">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                            + ADD AI SUBTITLES
-                        </button>
-                        <button id="dl-btn-${i}" onclick="startRecordDownload(${i})" class="w-full bg-slate-800 hover:bg-slate-700 py-3.5 rounded-xl font-bold text-sm transition-all text-slate-300 hover:text-white flex justify-center items-center gap-2">
+                        <button id="dl-btn-${i}" onclick="startRecordDownload(${i})" class="w-full bg-emerald-600 hover:bg-emerald-500 py-3.5 rounded-xl font-bold text-sm transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] active:scale-95 border border-emerald-500 flex justify-center items-center gap-2 text-white">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
                             Download Raw Export [${start}s to ${end}s]
                         </button>
@@ -251,80 +232,7 @@ async function startLiveProcessing() {
     clipContainer.classList.add('flex');
 }
 
-async function startLiveSubtitle(index) {
-    const clip = window.engineClipsData[index];
-    if(!clip.words || clip.words.length === 0) return alert("The AI failed to locate transcribed words for this specific visual.");
 
-    const overlay = document.getElementById('processing-overlay');
-    overlay.classList.remove('hidden');
-    overlay.classList.add('flex');
-    
-    const title = document.getElementById('proc-title');
-    const desc = document.getElementById('proc-desc');
-    const bar = document.getElementById('proc-bar');
-
-    bar.style.transition = "none";
-    bar.style.width = "0%";
-    setTimeout(() => bar.style.transition = "all 0.3s", 50);
-
-    title.textContent = "Burning Custom Subtitles...";
-    desc.textContent = "Applying dynamic text strokes tied into Exact Timestamps.";
-    bar.style.width = "90%";
-    await new Promise(r => setTimeout(r, 1000));
-
-    bar.style.width = "100%";
-    await new Promise(r => setTimeout(r, 400));
-    overlay.classList.add('hidden');
-    overlay.classList.remove('flex');
-
-    // Show Subtitles UI Element
-    document.getElementById(`mock-subtitles-${index}`).classList.remove('hidden');
-    
-    // Rewrite the action button
-    document.getElementById(`post-clip-actions-${index}`).innerHTML = `
-        <button class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 text-white rounded-xl font-black text-sm transition-all shadow-[0_0_20px_rgba(5,150,105,0.4)] active:scale-95 border border-emerald-500 flex gap-2 justify-center items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-            EXPORT FINAL CLIP
-        </button>
-    `;
-
-    const vid = document.getElementById(`res-vid-${index}`);
-    const capEl = document.getElementById(`mock-subtitle-text-${index}`);
-    let lastWord = "";
-
-    // Override original loop to include exact mathematical word burning
-    vid.ontimeupdate = () => {
-        // Loop behavior
-        if(vid.currentTime >= clip.endSeconds) {
-            vid.currentTime = clip.startSeconds;
-            vid.play();
-        }
-
-        // Check timeframe to extract the spoken word exactly mathematically matching
-        let currentWordText = "";
-        // Because video might be fast, we find the closest word time that is recently passed
-        for(let i=0; i < clip.words.length; i++) {
-            if (vid.currentTime >= clip.words[i].time) {
-                currentWordText = clip.words[i].text.toUpperCase();
-            } else {
-                break; // Stop since array is chronological natively
-            }
-        }
-
-        if(currentWordText && currentWordText !== lastWord) {
-            capEl.textContent = currentWordText;
-            lastWord = currentWordText;
-            
-            // Trigger a smooth rapid pop
-            capEl.style.transform = 'scale(1.2) rotate(' + (Math.random() * 6 - 3) + 'deg)';
-            
-            // Reset text effect shortly or smoothly before next update
-            setTimeout(() => {
-                capEl.style.transform = 'scale(1) rotate(0deg)';
-            }, 100);
-        }
-    };
-}
 
 async function startRecordDownload(index) {
     const clip = window.engineClipsData[index];
