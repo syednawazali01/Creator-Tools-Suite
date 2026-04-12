@@ -7,6 +7,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="../css/global.css" rel="stylesheet">
+    <!-- FFmpeg.wasm for MP4 conversion -->
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
         body { background-color: #0f172a; font-family: 'Outfit', sans-serif; color: #f8fafc; min-height: 100vh; background-image: radial-gradient(circle at 80% 10%, #064e3b 0%, #0f172a 60%); }
 
@@ -215,6 +217,22 @@
                 </div>
             </div>
 
+            <!-- Format Selector -->
+            <div class="glass rounded-2xl p-5 border border-white/5">
+                <h2 class="text-xs font-black uppercase tracking-widest text-emerald-500 mb-3">Export Format</h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="fmt-webm" onclick="setFormat('webm')" class="format-btn active py-3 rounded-xl text-sm font-black border border-emerald-500 bg-emerald-500/15 text-emerald-400 transition-all">
+                        WebM
+                        <div class="text-[9px] font-normal text-emerald-600 mt-0.5">Fast · No conversion</div>
+                    </button>
+                    <button id="fmt-mp4" onclick="setFormat('mp4')" class="format-btn py-3 rounded-xl text-sm font-black border border-white/10 text-slate-400 transition-all hover:border-white/25">
+                        MP4
+                        <div class="text-[9px] font-normal text-slate-600 mt-0.5">Universal · ~30s convert</div>
+                    </button>
+                </div>
+                <p id="fmt-note" class="text-[10px] text-slate-500 mt-3 leading-relaxed">WebM plays in all modern browsers and editors. Fast export, no conversion needed.</p>
+            </div>
+
             <!-- CTA -->
             <button onclick="startExport()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-black text-lg transition-all shadow-[0_0_24px_rgba(16,185,129,.35)] flex items-center justify-center gap-3">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
@@ -254,7 +272,7 @@
     <div class="flex gap-4">
         <a id="dl-link" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 px-8 py-3.5 rounded-xl font-black text-sm cursor-pointer transition-all shadow-[0_0_18px_rgba(16,185,129,.3)]">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-            Download WebM
+            <span id="dl-label">Download WebM</span>
         </a>
         <button onclick="document.getElementById('result-overlay').classList.add('hidden')" class="px-8 py-3.5 rounded-xl font-bold text-sm bg-slate-800 hover:bg-slate-700 transition-colors">Back to Editor</button>
         <button onclick="location.reload()" class="px-8 py-3.5 rounded-xl font-bold text-sm bg-slate-800 hover:bg-slate-700 transition-colors">New Video</button>

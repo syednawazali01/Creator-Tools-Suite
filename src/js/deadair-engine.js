@@ -22,6 +22,26 @@ const filters = {
     filler  : false,
 };
 
+let selectedFormat = 'webm'; // 'webm' | 'mp4'
+
+function setFormat(fmt) {
+    selectedFormat = fmt;
+    // Toggle button styles
+    const webmBtn = document.getElementById('fmt-webm');
+    const mp4Btn  = document.getElementById('fmt-mp4');
+    const note    = document.getElementById('fmt-note');
+
+    if (fmt === 'webm') {
+        webmBtn.className = 'format-btn py-3 rounded-xl text-sm font-black border border-emerald-500 bg-emerald-500/15 text-emerald-400 transition-all';
+        mp4Btn.className  = 'format-btn py-3 rounded-xl text-sm font-black border border-white/10 text-slate-400 transition-all hover:border-white/25';
+        note.textContent  = 'WebM plays in all modern browsers and editors. Fast export, no conversion needed.';
+    } else {
+        mp4Btn.className  = 'format-btn py-3 rounded-xl text-sm font-black border border-emerald-500 bg-emerald-500/15 text-emerald-400 transition-all';
+        webmBtn.className = 'format-btn py-3 rounded-xl text-sm font-black border border-white/10 text-slate-400 transition-all hover:border-white/25';
+        note.textContent  = 'MP4 (H.264/AAC) — universally compatible. FFmpeg.wasm converts in-browser after recording. First use downloads ~10 MB.';
+    }
+}
+
 // ─── Entry Point ─────────────────────────────────────────────
 async function onVideoLoaded(input) {
     const file = input.files[0];
@@ -356,12 +376,67 @@ async function startExport() {
     const chunks   = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
-    recorder.onstop = () => {
+    recorder.onstop = async () => {
+        const webmBlob = new Blob(chunks, { type: 'video/webm' });
+
+        let finalBlob = webmBlob;
+        let finalExt  = 'webm';
+        let finalMime = 'video/webm';
+
+        // ── MP4 conversion via FFmpeg.wasm ──
+        if (selectedFormat === 'mp4') {
+            title.textContent = 'Converting to MP4…';
+            desc.textContent  = 'Loading FFmpeg.wasm engine (one-time ~10 MB download)';
+            bar.style.width   = '95%';
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+
+            try {
+                const { createFFmpeg, fetchFile } = FFmpeg;
+                const ffmpeg = createFFmpeg({
+                    log: false,
+                    progress: ({ ratio }) => {
+                        bar.style.width = (95 + ratio * 4).toFixed(1) + '%';
+                        desc.textContent = `Converting… ${Math.round(ratio * 100)}%`;
+                    }
+                });
+
+                await ffmpeg.load();
+                desc.textContent = 'Transcoding VP9 → H.264…';
+
+                ffmpeg.FS('writeFile', 'input.webm', await fetchFile(webmBlob));
+                await ffmpeg.run(
+                    '-i', 'input.webm',
+                    '-c:v', 'libx264',
+                    '-preset', 'ultrafast',
+                    '-crf', '23',
+                    '-c:a', 'aac',
+                    '-b:a', '128k',
+                    '-movflags', '+faststart',
+                    'output.mp4'
+                );
+
+                const data = ffmpeg.FS('readFile', 'output.mp4');
+                finalBlob = new Blob([data.buffer], { type: 'video/mp4' });
+                finalExt  = 'mp4';
+                finalMime = 'video/mp4';
+
+                // Cleanup FS
+                ffmpeg.FS('unlink', 'input.webm');
+                ffmpeg.FS('unlink', 'output.mp4');
+
+            } catch (ffErr) {
+                console.error('FFmpeg conversion failed:', ffErr);
+                desc.textContent = 'MP4 conversion failed — downloading WebM instead.';
+                await new Promise(r => setTimeout(r, 1500));
+                // fall through with webm blob
+            }
+        }
+
         document.body.removeChild(srcVid);
         audioCtx.close();
 
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const url  = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(finalBlob);
 
         overlay.classList.add('hidden');
         overlay.classList.remove('flex');
@@ -370,12 +445,15 @@ async function startExport() {
         resultVid.src = url;
 
         const dl = document.getElementById('dl-link');
-        dl.href  = url;
-        dl.download = 'clean_' + (videoFile.name.replace(/\.[^.]+$/, '') || 'video') + '.webm';
+        dl.href     = url;
+        dl.download = 'clean_' + (videoFile.name.replace(/\.[^.]+$/, '') || 'video') + '.' + finalExt;
+
+        // Update download button label
+        document.getElementById('dl-label').textContent = `Download ${finalExt.toUpperCase()}`;
 
         const keptTime = keepSegments.reduce((a, s) => a + (s.end - s.start), 0);
         document.getElementById('result-meta').textContent =
-            `${fmtTime(keptTime)} clean output · ${keepSegments.length} segment${keepSegments.length !== 1 ? 's' : ''} · ${Math.round(blob.size / 1024)} KB`;
+            `${fmtTime(keptTime)} clean output · ${keepSegments.length} segment${keepSegments.length !== 1 ? 's' : ''} · ${Math.round(finalBlob.size / 1024)} KB · ${finalExt.toUpperCase()}`;
 
         document.getElementById('result-overlay').classList.remove('hidden');
         document.getElementById('result-overlay').classList.add('flex');
