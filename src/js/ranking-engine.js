@@ -46,7 +46,7 @@ function handleFileUpload(index, input) {
  */
 function addSlot(appendAtBottom = false) {
     const i     = slotIndexCounter++;
-    slots[i]    = { file: null, label: '', duration: 15 };
+    slots[i]    = { file: null, label: '', duration: 10 };
     const list  = document.getElementById('slots-list');
 
     const div               = document.createElement('div');
@@ -92,8 +92,9 @@ function addSlot(appendAtBottom = false) {
                     <label class="text-[8px] text-slate-500 font-bold uppercase">Time</label>
                     <select onchange="slots[${i}].duration = parseInt(this.value)"
                             class="bg-slate-800 text-[10px] text-emerald-400 font-bold px-1 py-0.5 rounded border border-white/5 outline-none focus:border-emerald-500 transition-colors">
-                        <option value="10">10s</option>
-                        <option value="15" selected>15s</option>
+                        <option value="5">5s</option>
+                        <option value="10" selected>10s</option>
+                        <option value="15">15s</option>
                         <option value="20">20s</option>
                         <option value="30">30s</option>
                     </select>
