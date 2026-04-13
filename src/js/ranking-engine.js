@@ -302,36 +302,85 @@ async function generateVideo() {
     for (let i = 0; i < playOrder.length; i++) {
         const clip  = playOrder[i];
         const video = document.createElement('video');
-        video.src   = URL.createObjectURL(clip.file);
-        video.muted = false;    // audio is routed to the recorder
+        video.src     = URL.createObjectURL(clip.file);
+        video.muted   = false;    // audio is routed to the recorder
+        video.preload = 'auto';   // hint browser to eagerly decode
 
-        // Route clip audio into the recorder's audio destination
-        await new Promise(resolve => {
-            video.onloadedmetadata = () => {
+        document.getElementById('status').textContent =
+            `Decoding clip ${i + 1} of ${playOrder.length}… please wait`;
+
+        // Wait for metadata + first decodable frame (with 15s timeout for heavy clips)
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Timeout decoding clip ' + (i + 1))), 15000);
+            video.onloadeddata = () => {
+                clearTimeout(timeout);
                 const srcNode = audioCtx.createMediaElementSource(video);
                 srcNode.connect(audioDest);
                 srcNode.connect(audioCtx.destination);
                 resolve();
             };
+            video.onerror = () => {
+                clearTimeout(timeout);
+                reject(new Error('Cannot decode clip ' + (i + 1) + '. Unsupported format.'));
+            };
+        }).catch(err => {
+            console.warn(err.message);
+            document.getElementById('status').textContent = `⚠️ Skipped: ${err.message}`;
         });
 
-        await video.play();
+        // If load failed, skip this clip gracefully
+        if (video.readyState < 2) {
+            URL.revokeObjectURL(video.src);
+            continue;
+        }
 
-        // Frame loop — draw until the clip ends naturally or duration reached
+        await video.play().catch(() => {});
+
+        // Frame loop — draw until clip ends naturally or duration reached.
+        // Stall guard: if video time doesn't advance for >3s, bail out.
+        let lastTime   = -1;
+        let stalledMs  = 0;
+        const STALL_LIMIT = 3000; // ms
+        let lastRaf    = performance.now();
+
+        document.getElementById('status').textContent =
+            `Rendering clip ${i + 1} of ${playOrder.length}… stay on this tab`;
+
         while (!video.ended && video.currentTime < clip.duration) {
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, CW, CH);
+            const now    = performance.now();
+            const deltaMs = now - lastRaf;
+            lastRaf = now;
 
-            // Cover-fit the video into the portrait canvas
-            const aspect = video.videoWidth / video.videoHeight;
-            let vw = CW, vh = CW / aspect;
-            if (vh < CH) { vh = CH; vw = CH * aspect; }
-            ctx.drawImage(video, (CW - vw) / 2, (CH - vh) / 2, vw, vh);
+            // Stall detection — if currentTime hasn't moved, accumulate stall time
+            if (video.currentTime === lastTime) {
+                stalledMs += deltaMs;
+                if (stalledMs > STALL_LIMIT) {
+                    console.warn(`Clip ${i + 1} stalled — skipping remainder`);
+                    document.getElementById('status').textContent =
+                        `⚠️ Clip ${i + 1} stalled (heavy file) — moving to next clip`;
+                    break;
+                }
+            } else {
+                stalledMs = 0;   // reset whenever the frame advances
+            }
+            lastTime = video.currentTime;
 
-            drawOverlays(clip.id);
+            // Only draw if browser has a frame ready
+            if (video.readyState >= 2) {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, CW, CH);
+
+                // Cover-fit the video into the portrait canvas
+                const aspect = video.videoWidth / video.videoHeight;
+                let vw = CW, vh = CW / aspect;
+                if (vh < CH) { vh = CH; vw = CH * aspect; }
+                ctx.drawImage(video, (CW - vw) / 2, (CH - vh) / 2, vw, vh);
+
+                drawOverlays(clip.id);
+            }
 
             document.getElementById('progress-bar').style.width =
-                `${(i / playOrder.length) * 100}%`;
+                `${((i + video.currentTime / clip.duration) / playOrder.length) * 100}%`;
 
             await new Promise(r => requestAnimationFrame(r));
         }
@@ -339,6 +388,8 @@ async function generateVideo() {
         video.pause();
         URL.revokeObjectURL(video.src);
     }
+
+    document.getElementById('status').textContent = 'Finalising video…';
 
     recorder.stop();
 }
