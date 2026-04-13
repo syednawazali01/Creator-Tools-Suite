@@ -236,9 +236,18 @@ async function generateVideo() {
     recorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'video/webm' });
         const url  = URL.createObjectURL(blob);
+
+        // Dynamic Filename based on user-entered titles
+        const t1 = document.getElementById('t1').value;
+        const t2 = document.getElementById('t2').value;
+        const t3 = document.getElementById('t3').value;
+        const t4 = document.getElementById('t4').value;
+        let finalTitle = `${t1} ${t2} ${t3} ${t4}`.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+        if (!finalTitle) finalTitle = 'ranking_final';
+
         document.getElementById('final-video').src      = url;
         document.getElementById('dl-link').href         = url;
-        document.getElementById('dl-link').download     = 'ranking_final.webm';
+        document.getElementById('dl-link').download     = `${finalTitle}.webm`;
         document.getElementById('loader').classList.add('hidden');
         document.getElementById('result-modal').classList.remove('hidden');
     };
