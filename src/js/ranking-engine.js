@@ -46,7 +46,7 @@ function handleFileUpload(index, input) {
  */
 function addSlot(appendAtBottom = false) {
     const i     = slotIndexCounter++;
-    slots[i]    = { file: null, label: '' };
+    slots[i]    = { file: null, label: '', duration: 15 };
     const list  = document.getElementById('slots-list');
 
     const div               = document.createElement('div');
@@ -80,12 +80,25 @@ function addSlot(appendAtBottom = false) {
 
         <!-- File input + label text -->
         <div class="flex-1 mt-1 space-y-2 self-center">
-            <input type="file" accept="video/*"
-                   onchange="handleFileUpload(${i}, this)"
-                   class="text-[10px] block w-full text-slate-300
-                          file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0
-                          file:text-[10px] file:font-bold file:bg-slate-700 file:text-emerald-400
-                          hover:file:bg-slate-600 cursor-pointer">
+            <div class="flex gap-2">
+                <input type="file" accept="video/*"
+                       onchange="handleFileUpload(${i}, this)"
+                       class="text-[10px] block flex-1 text-slate-300
+                              file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0
+                              file:text-[10px] file:font-bold file:bg-slate-700 file:text-emerald-400
+                              hover:file:bg-slate-600 cursor-pointer">
+                
+                <div class="flex flex-col gap-0.5 shrink-0">
+                    <label class="text-[8px] text-slate-500 font-bold uppercase">Time</label>
+                    <select onchange="slots[${i}].duration = parseInt(this.value)"
+                            class="bg-slate-800 text-[10px] text-emerald-400 font-bold px-1 py-0.5 rounded border border-white/5 outline-none focus:border-emerald-500 transition-colors">
+                        <option value="10">10s</option>
+                        <option value="15" selected>15s</option>
+                        <option value="20">20s</option>
+                        <option value="30">30s</option>
+                    </select>
+                </div>
+            </div>
             <input type="text" placeholder="Reveal text"
                    oninput="slots[${i}].label = this.value"
                    class="rank-label-input font-bold bg-black/30 w-full px-3 py-2
@@ -304,8 +317,8 @@ async function generateVideo() {
 
         await video.play();
 
-        // Frame loop — draw until the clip ends naturally
-        while (!video.ended) {
+        // Frame loop — draw until the clip ends naturally or duration reached
+        while (!video.ended && video.currentTime < clip.duration) {
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, CW, CH);
 
