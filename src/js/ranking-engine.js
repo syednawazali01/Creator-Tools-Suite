@@ -6,7 +6,8 @@
  *   2. Render real-time rank badge labels as the user sorts
  *   3. Drive the HTML5 Canvas rendering loop that composes the
  *      final countdown video frame-by-frame
- *   4. Record and export the composed stream as WebM via MediaRecorder
+ *   4. Record the composed stream as WebM via MediaRecorder, then
+ *      convert to H.264/AAC MP4 via FFmpeg.wasm for YT & Instagram Shorts
  */
 
 // ─── State ───────────────────────────────────────────────────
@@ -184,6 +185,86 @@ function updateRankLabels() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// MP4 CONVERSION (WebM → H.264/AAC MP4 via FFmpeg.wasm)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * convertToMp4
+ * Takes the raw WebM blob produced by MediaRecorder and re-encodes it
+ * to H.264 + AAC inside an MP4 container — the universally accepted
+ * format for YouTube Shorts and Instagram Reels.
+ *
+ * Settings chosen for Shorts/Reels compatibility:
+ *   - Video: H.264 (libx264), yuv420p, CRF 18 (visually lossless), preset fast
+ *   - Audio: AAC 192kbps stereo
+ *   - Container: MP4 with -movflags +faststart (web-optimised — metadata at front)
+ *
+ * @param {Blob}   webmBlob   The raw WebM output from MediaRecorder
+ * @param {string} filename   Base filename without extension
+ * @returns {Promise<{blob: Blob, filename: string}>}
+ */
+async function convertToMp4(webmBlob, filename) {
+    const statusEl  = document.getElementById('status');
+    const convertEl = document.getElementById('convert-status');
+    const progressEl = document.getElementById('progress-bar');
+
+    statusEl.textContent  = 'CONVERTING TO MP4 — PLEASE WAIT…';
+    convertEl.classList.remove('hidden');
+    progressEl.style.width = '95%';   // hold near-complete while FFmpeg runs
+
+    // Load FFmpeg.wasm (loads WASM binary once, cached after first use)
+    const { FFmpeg }   = FFmpegWASM;
+    const { fetchFile } = FFmpegUtil;
+    const ffmpeg        = new FFmpeg();
+
+    ffmpeg.on('log', ({ message }) => {
+        // Parse FFmpeg progress output to update sub-status text
+        if (message.includes('time=')) {
+            const match = message.match(/time=(\S+)/);
+            if (match) convertEl.textContent = `Converting… ${match[1]}`;
+        }
+    });
+
+    await ffmpeg.load({
+        coreURL:   'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+        wasmURL:   'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm',
+        workerURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.worker.js',
+    });
+
+    // Write the WebM blob into FFmpeg's in-memory filesystem
+    await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+
+    // Re-encode:
+    //   -c:v libx264        H.264 video (universal YT/IG support)
+    //   -crf 18             Near-lossless quality (0=best, 51=worst; 18 is ideal for Shorts)
+    //   -preset fast        Good speed/quality balance
+    //   -pix_fmt yuv420p    Required for iOS/Android playback compatibility
+    //   -c:a aac            AAC audio (required by MP4 spec and all platforms)
+    //   -b:a 192k           High-quality stereo audio bitrate
+    //   -movflags +faststart  Puts MP4 metadata at file start for instant web streaming
+    await ffmpeg.exec([
+        '-i',         'input.webm',
+        '-c:v',       'libx264',
+        '-crf',       '18',
+        '-preset',    'fast',
+        '-pix_fmt',   'yuv420p',
+        '-c:a',       'aac',
+        '-b:a',       '192k',
+        '-movflags',  '+faststart',
+        'output.mp4',
+    ]);
+
+    // Read the output MP4 back out of FFmpeg's virtual filesystem
+    const mp4Data = await ffmpeg.readFile('output.mp4');
+    const mp4Blob = new Blob([mp4Data.buffer], { type: 'video/mp4' });
+
+    convertEl.classList.add('hidden');
+    progressEl.style.width = '100%';
+
+    return { blob: mp4Blob, filename: `${filename}.mp4` };
+}
+
+// ─────────────────────────────────────────────────────────────
 // CANVAS RENDERING & EXPORT ENGINE
 // ─────────────────────────────────────────────────────────────
 
@@ -193,7 +274,8 @@ function updateRankLabels() {
  *   - Reads current slot order from the DOM
  *   - Plays each clip in reverse rank order (highest rank → Rank 1)
  *   - Each frame is drawn onto a 720×1280 canvas with HUD overlays
- *   - MediaRecorder captures the canvas stream → WebM blob download
+ *   - MediaRecorder captures the canvas stream → WebM blob
+ *   - FFmpeg.wasm converts the WebM → H.264/AAC MP4 for YT & Instagram Shorts
  */
 async function generateVideo() {
     // Build ordered slot list respecting the current drag order
@@ -233,21 +315,38 @@ async function generateVideo() {
     const chunks = [];
 
     recorder.ondataavailable = e => chunks.push(e.data);
-    recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const url  = URL.createObjectURL(blob);
 
-        // Dynamic Filename based on user-entered titles
+    // ── On recording complete: convert WebM → MP4 then show result ──
+    recorder.onstop = async () => {
+        const webmBlob = new Blob(chunks, { type: 'video/webm' });
+
+        // Build filename from user-entered titles
         const t1 = document.getElementById('t1').value;
         const t2 = document.getElementById('t2').value;
         const t3 = document.getElementById('t3').value;
         const t4 = document.getElementById('t4').value;
-        let finalTitle = `${t1} ${t2} ${t3} ${t4}`.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
-        if (!finalTitle) finalTitle = 'ranking_final';
+        let baseFilename = `${t1} ${t2} ${t3} ${t4}`.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+        if (!baseFilename) baseFilename = 'ranking_final';
 
-        document.getElementById('final-video').src      = url;
-        document.getElementById('dl-link').href         = url;
-        document.getElementById('dl-link').download     = `${finalTitle}.webm`;
+        try {
+            // Convert to MP4 (H.264 + AAC) for YouTube & Instagram Shorts
+            const { blob: mp4Blob, filename: mp4Filename } = await convertToMp4(webmBlob, baseFilename);
+
+            const url = URL.createObjectURL(mp4Blob);
+            document.getElementById('final-video').src  = url;
+            document.getElementById('dl-link').href     = url;
+            document.getElementById('dl-link').download = mp4Filename;
+
+        } catch (err) {
+            // FFmpeg failed — fall back to original WebM so the user still gets their video
+            console.error('MP4 conversion failed, falling back to WebM:', err);
+            const url = URL.createObjectURL(webmBlob);
+            document.getElementById('final-video').src  = url;
+            document.getElementById('dl-link').href     = url;
+            document.getElementById('dl-link').download = `${baseFilename}.webm`;
+            document.getElementById('dl-link').textContent = '⬇ Download Video (WebM)';
+        }
+
         document.getElementById('loader').classList.add('hidden');
         document.getElementById('result-modal').classList.remove('hidden');
     };

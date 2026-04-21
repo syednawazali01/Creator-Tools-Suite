@@ -9,6 +9,11 @@
     <link href="../css/global.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <!-- FFmpeg.wasm — used only for WebM → MP4 conversion after recording -->
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+
     <style>
         /* Component Specific Overrides if needed */
         .glass {
@@ -97,8 +102,9 @@
         <div class="w-64 h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div id="progress-bar" class="h-full bg-emerald-500 w-0 transition-all"></div>
         </div>
-        <p id="status" class="mt-4 text-xs font-bold tracking-widest text-emerald-400 uppercase">Processing: Stay on this
-            tab</p>
+        <p id="status" class="mt-4 text-xs font-bold tracking-widest text-emerald-400 uppercase">Processing: Stay on this tab</p>
+        <!-- MP4 conversion sub-status (shown only during FFmpeg pass) -->
+        <p id="convert-status" class="mt-2 text-[10px] font-bold tracking-widest text-slate-500 uppercase hidden">Converting to MP4 for YouTube &amp; Instagram…</p>
     </div>
 
     <!-- UI: Preview -->
@@ -106,11 +112,12 @@
         <video id="final-video" class="max-h-[75vh] rounded-lg border border-slate-800 shadow-[0_0_50px_rgba(16,185,129,0.2)]" controls></video>
         <div class="mt-6 flex gap-4">
             <a id="dl-link"
-                class="bg-emerald-600 hover:bg-emerald-500 px-10 py-3 rounded-full font-bold cursor-pointer transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] text-white">Download
-                Video</a>
+                class="bg-emerald-600 hover:bg-emerald-500 px-10 py-3 rounded-full font-bold cursor-pointer transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] text-white">⬇ Download MP4</a>
             <button onclick="location.reload()" class="bg-slate-800 hover:bg-slate-700 px-10 py-3 rounded-full font-bold transition-colors">New
                 Project</button>
         </div>
+        <!-- Format info badge -->
+        <p class="mt-3 text-[10px] text-slate-500 font-mono tracking-widest">H.264 · AAC · 9:16 · 720×1280 · Ready for YouTube &amp; Instagram Shorts</p>
     </div>
 
     <!-- Modular Script Injection -->

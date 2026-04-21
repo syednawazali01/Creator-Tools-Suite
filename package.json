@@ -1,10 +1,10 @@
 {
   "name": "creator-tools-suite",
   "version": "1.0.0",
-  "description": "A powerful, browser-based suite of creator AI tools, featuring an Auto Shorts Ranking Maker and an Auto Clipping Engine.",
+  "description": "A powerful, browser-based suite of creator tools — Auto Shorts Ranking Maker, Dead-Air Destroyer, and Video Editor.",
   "main": "index.html",
   "scripts": {
-    "start": "npx serve ."
+    "start": "serve ."
   },
   "keywords": [
     "creator-tools",
@@ -15,5 +15,8 @@
     "sortablejs"
   ],
   "author": "Syed Nawaz Ali",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.3"
+  }
 }

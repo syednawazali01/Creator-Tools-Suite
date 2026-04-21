@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Local environment / API keys
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor directories
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output (if added later)
+dist/
+build/
+
+# Serve cache
+.cache/
